@@ -1,0 +1,13 @@
+venv\Scripts\activate
+pip install django
+django-admin startproject config .
+python manage.py startapp core
+pip install mssql-django pyodbc
+python manage.py inspectdb > core/models.py
+python manage.py createsuperuser
+python manage.py runserver
+
+
+
+user name: duc
+password: duc123456
