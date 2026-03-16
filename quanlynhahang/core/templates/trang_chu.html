@@ -44,7 +44,9 @@
 
     <nav class="navbar navbar-expand-lg bg-white shadow-sm py-3">
         <div class="container">
-            <a class="navbar-brand text-orange fs-3" href="#">LOGO</a>
+            <a class="navbar-brand text-orange fs-3" href="#">
+                <img src="/static/image/logo1.png" height="45">
+            </a>
             <div class="collapse navbar-collapse justify-content-center">
                 <ul class="navbar-nav fw-medium">
                     <li class="nav-item"><a class="nav-link text-dark mx-2" href="#">Trang chủ</a></li>
@@ -55,8 +57,17 @@
             </div>
             <div>
                 <span class="fs-4 me-3">🛒</span>
-                <a href="/admin" class="btn btn-outline-dark btn-sm me-2">Đăng nhập</a>
-                <a href="#" class="btn btn-orange btn-sm">Đăng ký</a>
+
+                {% if user.is_authenticated %}
+                    <span class="me-2">Xin chào, <b>{{ user.username }}</b></span>
+                    <form action="/logout/" method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-dark btn-sm">Đăng xuất</button>
+                    </form>
+                {% else %}
+                    <a href="/login" class="btn btn-outline-dark btn-sm me-2">Đăng nhập</a>
+                    <a href="#" class="btn btn-orange btn-sm">Đăng ký</a>
+                {% endif %}
             </div>
         </div>
     </nav>

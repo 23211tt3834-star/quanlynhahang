@@ -4,7 +4,11 @@ django-admin startproject config .
 python manage.py startapp core
 pip install mssql-django pyodbc
 python manage.py inspectdb > core/models.py
+
+tạo tài khoản admin:
 python manage.py createsuperuser
+
+chạy 
 python manage.py runserver
 
 
