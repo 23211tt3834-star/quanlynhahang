@@ -4,7 +4,7 @@ GO
 USE quanlynhahang;
 GO
 
--- 3. Bảng Loại món ăn
+-- Bảng Loại món ăn
 CREATE TABLE loai_mon (
     id INT IDENTITY(1,1) PRIMARY KEY,
     ten_loai NVARCHAR(100) NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE loai_mon (
 );
 GO
 
--- 4. Bảng Món ăn
+-- Bảng Món ăn
 CREATE TABLE mon_an (
     id INT IDENTITY(1,1) PRIMARY KEY,
     loai_mon_id INT NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE mon_an (
 );
 GO
 
--- 5. Bảng Nhân viên
+-- Bảng Nhân viên
 CREATE TABLE nhan_vien (
     id INT IDENTITY(1,1) PRIMARY KEY,
     ho_ten NVARCHAR(150) NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE nhan_vien (
 );
 GO
 
--- 6. Bảng Bàn
+-- Bảng Bàn
 CREATE TABLE ban (
     id INT IDENTITY(1,1) PRIMARY KEY,
     so_ban VARCHAR(20) NOT NULL UNIQUE,
@@ -46,7 +46,7 @@ CREATE TABLE ban (
 );
 GO
 
--- 7. Bảng Đơn hàng
+-- Bảng Đơn hàng
 CREATE TABLE don_hang (
     id INT IDENTITY(1,1) PRIMARY KEY,
     ban_id INT,
@@ -61,7 +61,7 @@ CREATE TABLE don_hang (
 );
 GO
 
--- 8. Bảng Chi tiết đơn hàng
+-- Bảng Chi tiết đơn hàng
 CREATE TABLE chi_tiet_don_hang (
     id INT IDENTITY(1,1) PRIMARY KEY,
     don_hang_id INT NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE chi_tiet_don_hang (
 );
 GO
 
--- 9. Bảng Thanh toán
+-- Bảng Thanh toán
 CREATE TABLE thanh_toan (
     id INT IDENTITY(1,1) PRIMARY KEY,
     don_hang_id INT NOT NULL UNIQUE,
@@ -88,7 +88,7 @@ CREATE TABLE thanh_toan (
 );
 GO
 
--- 10. Bảng Đánh giá
+-- Bảng Đánh giá
 CREATE TABLE danh_gia (
     id INT IDENTITY(1,1) PRIMARY KEY,
     mon_an_id INT NOT NULL,
@@ -101,7 +101,22 @@ CREATE TABLE danh_gia (
 );
 GO
 
-
+CREATE TABLE dat_ban (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+	ban_id INT NULL,
+    ten_khach_hang NVARCHAR(150) NOT NULL,
+    so_dien_thoai VARCHAR(20) NOT NULL,
+    ngay_dat DATE NOT NULL,
+    gio_dat TIME NOT NULL,
+    so_nguoi INT NOT NULL,
+    ghi_chu NVARCHAR(MAX) NULL,
+    tong_tien_coc DECIMAL(18,0) DEFAULT 0,
+    trang_thai VARCHAR(50) DEFAULT 'ChoXacNhan', -- ChoXacNhan, DaCoc, HoanThanh, DaHuy
+    thoi_gian_tao DATETIME DEFAULT GETDATE()
+	CONSTRAINT FK_DatBan_Ban FOREIGN KEY (ban_id) 
+        REFERENCES ban(id) ON DELETE SET NULL
+);
+GO
 
 -- 1. LOẠI MÓN ĂN (loai_mon)
 INSERT INTO loai_mon (ten_loai, mo_ta) VALUES
@@ -182,4 +197,12 @@ INSERT INTO danh_gia (mon_an_id, ten_khach_hang, diem_danh_gia, noi_dung, thoi_g
 (7, N'Hải Đăng', 5, N'Tôm hùm phô mai béo ngậy, ăn đáng đồng tiền bát gạo.', GETDATE()),
 (18, N'Ngọc Linh', 5, N'Tiramisu chuẩn vị Ý, không bị ngọt gắt, rất thích.', GETDATE()),
 (1, N'Bác Hùng', 3, N'Súp cua hơi nguội khi mang ra bàn.', GETDATE());
+GO
+
+INSERT INTO dat_ban (ten_khach_hang, so_dien_thoai, ngay_dat, gio_dat, so_nguoi, ghi_chu, tong_tien_coc, trang_thai, thoi_gian_tao) VALUES
+(N'Lê Thị Lan', '0901234567', '2026-03-20', '19:00:00', 2, N'Kỷ niệm ngày cưới, chuẩn bị giùm nến và hoa hồng. Xin xếp bàn góc tối lãng mạn.', 500000, 'DaCoc', GETDATE()),
+(N'Trần Phan Trọng', '0988777666', '2026-03-18', '18:30:00', 15, N'Tiệc công ty, chuẩn bị sẵn 3 thùng Heineken ướp lạnh trước. Cần xuất hóa đơn VAT.', 2000000, 'DaCoc', GETDATE()),
+(N'Nguyễn Thị Thanh Lịch', '0911222333', '2026-03-25', '11:30:00', 4, N'Gia đình có trẻ em, nhờ chuẩn bị 1 ghế em bé. Dị ứng đậu phộng.', 0, 'ChoXacNhan', GETDATE()),
+(N'Phạm Sếp Tổng', '0999888777', '2026-03-22', '20:00:00', 8, N'Tiệc tiếp đối tác quan trọng. Vui lòng xếp phòng VIP-2.', 1000000, 'HoanThanh', '2026-03-10 14:00:00'),
+(N'Hoàng Văn Thanh', '0933444555', '2026-03-19', '19:30:00', 6, N'Hủy do trời mưa ngập đường không đi được.', 0, 'DaHuy', '2026-03-15 09:00:00');
 GO

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>POS - Nhân Viên</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1">Hệ Thống Nhà Hàng - Xin chào, {{ request.user.username }}</span>
+        <a href="/admin/logout/" class="btn btn-outline-light btn-sm">Đăng xuất</a>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-7">
+            <h4 class="mb-3">🪑 Sơ Đồ Bàn</h4>
+            <div class="row g-3">
+                {% for ban in danh_sach_ban %}
+                <div class="col-md-3">
+                    <div class="card text-center text-white {% if ban.trang_thai == 'Trống' or ban.trang_thai == 'Trong' %}bg-success{% else %}bg-danger{% endif %} shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">Bàn {{ ban.so_ban }}</h5>
+                            <p class="card-text mb-0"><small>{{ ban.so_ghe }} ghế</small></p>
+                            <p class="card-text fw-bold">{{ ban.trang_thai|default:"Chưa rõ" }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <h4 class="mb-3">📝 Bếp / Đơn Đang Phục Vụ</h4>
+            <div class="list-group">
+                {% for don in don_hang_dang_cho %}
+                <div class="list-group-item list-group-item-action mb-2 shadow-sm rounded border-start border-warning border-4">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <h5 class="mb-1 text-primary">
+                            {% if don.ban %}
+                                Bàn {{ don.ban.so_ban }}
+                            {% else %}
+                                Mang về / Chưa xếp bàn
+                            {% endif %}
+                        </h5>
+                        <small class="text-muted">{{ don.thoi_gian_tao|date:"H:i - d/m/Y" }}</small>
+                    </div>
+                    
+                    <p class="mb-1 mt-2"><strong>Mã đơn:</strong> #{{ don.id }}</p>
+                    <p class="mb-1"><strong>Trạng thái:</strong> <span class="badge bg-warning text-dark">{{ don.trang_thai_don|default:"Mới đặt" }}</span></p>
+                    <p class="mb-1 text-danger fw-bold"><strong>Tổng tiền:</strong> {{ don.tong_tien|default:"0" }} đ</p>
+                    
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary">Chi tiết món</button>
+                        <button class="btn btn-sm btn-success">Thanh toán</button>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="alert alert-secondary text-center">Hiện chưa có đơn hàng nào đang chạy.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
