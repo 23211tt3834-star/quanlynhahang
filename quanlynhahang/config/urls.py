@@ -16,5 +16,9 @@ urlpatterns = [
     path('dat-ban/', views.dat_ban_view, name='dat_ban'),
     path('thanh-toan/<int:dat_ban_id>/', views.thanh_toan_view, name='thanh_toan'),
     path('nhan-vien/', views.man_hinh_nhan_vien, name='man_hinh_nhan_vien'),
+    path('quan-ly-dat-ban/', views.quan_ly_dat_ban, name='quan_ly_dat_ban'),
+    path('dashboard/', views.man_hinh_nhan_vien, name='dashboard'),
+    path('thuc-don/', views.thuc_don, name='thuc_don'),
+    path('ban/<int:ban_id>/', views.chi_tiet_ban, name='chi_tiet_ban'),
 ]
 

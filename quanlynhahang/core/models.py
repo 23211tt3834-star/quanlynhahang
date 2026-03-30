@@ -230,7 +230,14 @@ class ThanhToan(models.Model):
 
 
 class DatBan(models.Model):
-    ban = models.ForeignKey('Ban', models.DO_NOTHING, db_column='ban_id', blank=True, null=True, verbose_name="Bàn được xếp")
+    ban = models.ForeignKey(
+        'Ban',
+        on_delete=models.SET_NULL,
+        db_column='ban_id',
+        blank=True,
+        null=True,
+        verbose_name="Bàn được xếp"
+    )
     
     ten_khach_hang = models.CharField(max_length=150, verbose_name="Tên khách hàng")
     so_dien_thoai = models.CharField(max_length=20, verbose_name="Số điện thoại")
@@ -239,8 +246,10 @@ class DatBan(models.Model):
     so_nguoi = models.IntegerField(verbose_name="Số người")
     ghi_chu = models.TextField(blank=True, null=True, verbose_name="Ghi chú")
     tong_tien_coc = models.DecimalField(max_digits=18, decimal_places=0, blank=True, null=True, verbose_name="Tiền cọc")
-    trang_thai = models.CharField(max_length=50, blank=True, null=True, verbose_name="Trạng thái")
-    thoi_gian_tao = models.DateTimeField(blank=True, null=True)
+
+    trang_thai = models.CharField(max_length=50, default="ChoXacNhan", verbose_name="Trạng thái")
+
+    thoi_gian_tao = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         managed = True  

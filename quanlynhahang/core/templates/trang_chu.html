@@ -46,9 +46,9 @@
             </a>
             <div class="collapse navbar-collapse justify-content-center">
                 <ul class="navbar-nav fw-medium">
-                    <li class="nav-item"><a class="nav-link text-dark mx-2" href="home">Trang chủ</a></li>
-                    <li class="nav-item"><a class="nav-link text-dark mx-2" href="#">Thực đơn</a></li>
-                    <li class="nav-item"><a class="nav-link text-dark mx-2" href="#">Đặt bàn</a></li>
+                    <li class="nav-item"><a class="nav-link text-dark mx-2" href="{% url 'trang_chu' %}">Trang chủ</a></li>
+                    <li class="nav-item"><a class="nav-link text-dark mx-2" href="{% url 'thuc_don' %}">Thực đơn</a></li>
+                    <li class="nav-item"><a class="nav-link text-dark mx-2" href="{% url 'dat_ban' %}">Đặt bàn</a></li>
                     <li class="nav-item"><a class="nav-link text-dark mx-2" href="#">Liên hệ</a></li>
                 </ul>
             </div>
@@ -92,7 +92,7 @@
     <div class="hero-section">
         <div class="container">
             <h1 class="display-5 fw-bold mb-4">HƯƠNG VỊ TUYỆT HẢO – PHỤC VỤ TẬN TÂM</h1>
-            <button class="btn btn-orange btn-lg px-4 me-3">Xem Thực Đơn</button>
+            <a href="{% url 'thuc_don' %}" class="btn btn-orange btn-lg px-4 me-3">Xem Thực Đơn</a>
             <a href="{% url 'dat_ban' %}" class="btn btn-warning btn-lg px-4 text-dark fw-bold">Đặt Bàn Ngay</a>
         </div>
     </div>

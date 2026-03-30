@@ -3,9 +3,71 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đặt Bàn - Nhà Hàng Tinh Hoa</title>
+    <title>Đặt Bàn</title>
+
     <style>
+        body { 
+            font-family: Arial; 
+            padding: 40px 10px; 
+            background-image: url("{% static 'image/back.jpg' %}");
+            background-size: cover;
+        }
+
+        .booking-container { 
+            max-width: 600px; 
+            margin: auto; 
+            background: rgba(255,255,255,0.95); 
+            padding: 30px; 
+            border-radius: 15px;
+        }
+
+        .form-group { margin-bottom: 15px; }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        .deposit-options {
+            display: flex;
+            gap: 10px;
+        }
+
+        .deposit-card {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .deposit-card.active {
+            background: #d35400;
+            color: white;
+        }
+
+        .deposit-card.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: #d35400;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .alert { padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+        .alert-success { background: #d4edda; }
+        .alert-error { background: #f8d7da; }
         /* Đã cập nhật background có ảnh nền và hiệu ứng mờ */
         body { 
             font-family: Arial, sans-serif; 
@@ -47,26 +109,43 @@
         .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-weight: bold; }
         .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .home-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #d35400;
+            color: white;
+            padding: 10px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            z-index: 999;
+        }
+
+        .home-btn:hover {
+            background: #a04000;
+        }
     </style>
 </head>
-<body>
 
+<body>
+    <a href="{% url 'trang_chu' %}" class="home-btn">
+        về Trang chủ
+    </a>
 <div class="booking-container">
-    <h2>🍽️ Đặt Bàn Ngay</h2>
-    
+    <h2>🍽️ Đặt bàn</h2>
+   
     {% if messages %}
-        <div class="messages-container">
-            {% for message in messages %}
-                <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
+        {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
     {% endif %}
 
-    <form method="POST" action="">
-        {% csrf_token %} 
-        
+    <form method="POST">
+        {% csrf_token %}
+
         <div class="form-group">
             <label>Tên người đặt (*)</label>
             <input type="text" name="ten_khach_hang" required 
@@ -85,7 +164,7 @@
                    placeholder="0xxxxxxxx">
         </div>
 
-        <div style="display: flex; gap: 15px;">
+        <div style="display: flex; gap: 30px;">
             <div class="form-group" style="flex: 1;">
                 <label>Ngày đến (*)</label>
                 <input type="date" name="ngay_dat" id="ngay_dat" required>
@@ -95,10 +174,10 @@
                 <input type="time" name="gio_dat" required>
             </div>
         </div>
-
+        
         <div class="form-group">
             <label>Số người (*)</label>
-            <input type="number" name="so_nguoi" min="1" max="50" required value="2" title="Số người phải lớn hơn 0">
+            <input type="number" name="so_nguoi" id="so_nguoi" value="2">
         </div>
 
         <div class="form-group">
@@ -106,70 +185,119 @@
             <textarea name="ghi_chu" rows="3" placeholder="Yêu cầu ghế em bé, dị ứng thức ăn, sắp xếp lãng mạn..."></textarea>
         </div>
 
-        <div class="form-group">
-            <label>Xác nhận giữ bàn (Tiền cọc sẽ trừ vào hóa đơn)</label>
-            <div class="deposit-options">
-                <div class="deposit-card active" onclick="selectDeposit(0, this)">
-                    <strong>Không cọc</strong><br><small>Chờ xác nhận</small>
-                </div>
-                <div class="deposit-card" onclick="selectDeposit(500000, this)">
-                    <strong>500,000đ</strong><br><small>Bàn Tiêu Chuẩn</small>
-                </div>
-                <div class="deposit-card" onclick="selectDeposit(1000000, this)">
-                    <strong>1,000,000đ</strong><br><small>Bàn VIP / Tiệc</small>
-                </div>
+        <div class="deposit-options">
+            <div class="deposit-card" onclick="selectDeposit(0,this)">
+                Không cọc<br><small>4-6 người</small>
             </div>
-            <input type="hidden" name="tong_tien_coc" id="input_tien_coc" value="0">
+
+            <div class="deposit-card" onclick="selectDeposit(500000,this)">
+                Tiêu chuẩn<br><small>2-8 người</small>
+            </div>
+
+            <div class="deposit-card" onclick="selectDeposit(1000000,this)">
+                VIP<br><small>10-12 người</small>
+            </div>
         </div>
 
-        <button type="submit" class="submit-btn" id="btn_submit">Gửi Yêu Cầu Đặt Bàn</button>
+        <input type="hidden" name="tong_tien_coc" id="input_tien_coc" value="0">
+
+        <button type="submit" class="submit-btn" id="btn_submit" onclick="return validateForm()">Gửi Yêu Cầu Đặt Bàn</button>
+        
     </form>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        let today = new Date().toISOString().split('T')[0];
-        document.getElementById('ngay_dat').setAttribute('min', today);
-    });
+const soNguoiInput = document.getElementById("so_nguoi");
+const cards = document.getElementsByClassName("deposit-card");
 
-    function selectDeposit(amount, element) {
-        document.getElementById('input_tien_coc').value = amount;
-        
-        let cards = document.getElementsByClassName('deposit-card');
-        for(let i = 0; i < cards.length; i++) {
-            cards[i].classList.remove('active');
-        }
-        
-        element.classList.add('active');
 
-        let btn = document.getElementById('btn_submit');
-        if (amount > 0) {
-            let formattedAmount = amount.toLocaleString('vi-VN');
-            btn.innerHTML = `Thanh toán cọc: ${formattedAmount}đ`;
-        } else {
-            btn.innerHTML = `Gửi Yêu Cầu Đặt Bàn`;
-        }
+function selectDeposit(amount, el){
+    if(el.classList.contains("disabled")) return;
+
+    document.getElementById("input_tien_coc").value = amount;
+
+    for(let c of cards) c.classList.remove("active");
+    el.classList.add("active");
+
+    let btn = document.getElementById('btn_submit');
+    if (amount > 0) {
+        btn.innerHTML = `Thanh toán cọc: ${amount.toLocaleString('vi-VN')}đ`;
+    } else {
+        btn.innerHTML = `Gửi Yêu Cầu Đặt Bàn`;
     }
+}
 
-    const ngayDatInput = document.getElementById('ngay_dat');
-    const gioDatInput = document.querySelector('input[name="gio_dat"]');
+// 🔥 CHECK SỐ NGƯỜI
+function checkNguoi(){
+    let n = parseInt(soNguoiInput.value) || 0;
 
-    function kiemTraThoiGian() {
-        if (ngayDatInput.value && gioDatInput.value) {
-            let thoiGianChon = new Date(ngayDatInput.value + 'T' + gioDatInput.value);
-            let thoiGianHienTai = new Date();
+    for(let i=0;i<cards.length;i++){
+        let card = cards[i];
 
-            if (thoiGianChon < thoiGianHienTai) {
-                gioDatInput.setCustomValidity('Không thể đặt bàn trong quá khứ. Vui lòng chọn lại giờ!');
+        // reset
+        card.classList.remove("disabled");
+        card.style.opacity = "1";
+        card.style.pointerEvents = "auto";
+
+        let small = card.querySelector("small");
+
+        if(i==0){
+            if(n<4 || n>6){
+                disable(card,"4-6 người");
             } else {
-                gioDatInput.setCustomValidity(''); 
+                small.innerText = "4-6 người";
+            }
+        }
+
+        if(i==1){
+            if(n<2 || n>8){
+                disable(card,"2-8 người");
+            } else {
+                small.innerText = "2-8 người";
+            }
+        }
+
+        if(i==2){
+            if(n<10 || n>12){
+                disable(card,"10-12 người");
+            } else {
+                small.innerText = "10-12 người";
             }
         }
     }
+}
 
-    ngayDatInput.addEventListener('change', kiemTraThoiGian);
-    gioDatInput.addEventListener('input', kiemTraThoiGian);
+function disable(card,text){
+    card.classList.add("disabled");
+    card.style.opacity = "0.4";
+    card.style.pointerEvents = "none";
 
+    card.querySelector("small").innerText = text + " (không phù hợp)";
+
+    // nếu đang chọn mà bị disable → bỏ chọn
+    if(card.classList.contains("active")){
+        card.classList.remove("active");
+        document.getElementById("input_tien_coc").value = 0;
+    }
+}
+
+soNguoiInput.addEventListener("input", checkNguoi);
+
+// chạy lần đầu
+checkNguoi();
+
+// ngày hôm nay
+document.getElementById('ngay_dat').min = new Date().toISOString().split('T')[0];
+function validateForm(){
+    let selected = document.querySelector(".deposit-card.active");
+
+    if(!selected){
+        alert("Vui lòng chọn loại bàn phù hợp với số người!");
+        return false;
+    }
+
+    return true;
+}
 </script>
 
 </body>
