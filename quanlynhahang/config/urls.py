@@ -20,5 +20,6 @@ urlpatterns = [
     path('dashboard/', views.man_hinh_nhan_vien, name='dashboard'),
     path('thuc-don/', views.thuc_don, name='thuc_don'),
     path('ban/<int:ban_id>/', views.chi_tiet_ban, name='chi_tiet_ban'),
+    path('hoan-tat-dat-ban/', views.hoan_tat_dat_ban, name='hoan_tat_dat_ban'),
 ]
 

@@ -1,20 +1,58 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import MonAn, LoaiMon  
+from .models import MonAn, LoaiMon, DanhGia
 from .models import Ban, DatBan, DonHang, ChiTietDonHang
 from django.http import HttpResponse
 from django.contrib import messages
 from datetime import datetime, timedelta
-from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.decorators import user_passes_test, login_required
+from django.db.models import Avg
+from django.core.paginator import Paginator
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .models import LoaiMon, MonAn, DanhGia
+from django.db.models import Q
 
-from django.shortcuts import redirect
 
 def trang_chu(request):
     danh_sach_loai = LoaiMon.objects.all()
+
     danh_sach_mon = MonAn.objects.all()
+    tu_khoa = request.GET.get('q', '')     
+    loai_id = request.GET.get('loai', '')  
+
+    if tu_khoa:
+        danh_sach_mon = danh_sach_mon.filter(ten_mon__icontains=tu_khoa) 
+        
+
+    if loai_id and loai_id.isdigit():
+        danh_sach_mon = danh_sach_mon.filter(loai_mon_id=loai_id)
+
+    danh_sach_loai = LoaiMon.objects.all()
+    danh_sach_mon = MonAn.objects.all()
+
+    danh_sach_mon_da_an = []
+    if request.user.is_authenticated:
+        danh_sach_mon_da_an = danh_sach_mon 
+
+    if request.method == 'POST' and 'submit_danh_gia' in request.POST:
+        pass
+
+    toan_bo_danh_gia = DanhGia.objects.select_related('mon_an').order_by('-thoi_gian_tao')
     
+    tong_danh_gia = toan_bo_danh_gia.count()
+    diem_trung_binh = round(toan_bo_danh_gia.aggregate(Avg('diem_danh_gia'))['diem_danh_gia__avg'], 1) if tong_danh_gia > 0 else 0.0
+
+    paginator = Paginator(toan_bo_danh_gia, 5) 
+    page_number = request.GET.get('page') 
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'danh_sach_loai': danh_sach_loai,
-        'danh_sach_mon': danh_sach_mon
+        'danh_sach_mon': danh_sach_mon,
+        'page_obj': page_obj,                 
+        'tong_danh_gia': tong_danh_gia,         
+        'diem_trung_binh': diem_trung_binh,     
+        'danh_sach_mon_da_an': danh_sach_mon_da_an, 
     }
     return render(request, 'trang_chu.html', context)
 
@@ -23,6 +61,9 @@ def chi_tiet_mon(request, mon_id):
     return render(request, 'chi_tiet_mon.html', {'mon': mon})
 
 def redirect_after_login(request):
+    if 'tam_thoi_dat_ban' in request.session:
+        return redirect('/hoan-tat-dat-ban/')
+
     if request.user.is_staff:   # admin
         return redirect('/admin')
     else:                       # user thường
@@ -36,19 +77,43 @@ def dat_ban_view(request):
         gio_str = request.POST.get('gio_dat')     
         so_nguoi = request.POST.get('so_nguoi')
         ghi_chu = request.POST.get('ghi_chu', '')
-
         tien_coc = int(request.POST.get('tong_tien_coc', 0))
 
         if not so_nguoi:
-            messages.error(request, "❌ Vui lòng nhập số người")
+            messages.error(request, "Vui lòng nhập số người")
             return redirect('dat_ban')
 
         so_nguoi = int(so_nguoi)
         
         if tien_coc == 0:
-            messages.error(request, "❌ Vui lòng chọn loại bàn trước khi đặt!")
+            messages.error(request, "Vui lòng chọn loại bàn trước khi đặt!")
+            return redirect('dat_ban')
+
+        try:
+            ngay_dat_hop_le = datetime.strptime(ngay, '%Y-%m-%d').date()
+            ngay_hien_tai = datetime.today().date()
+
+            if ngay_dat_hop_le < ngay_hien_tai:
+                messages.error(request, "Lỗi: Không thể đặt bàn cho ngày trong quá khứ!")
+                return redirect('dat_ban')
+
+        except ValueError:
+            messages.error(request, "Lỗi: Ngày tháng bạn chọn không hợp lệ (Không tồn tại trên lịch)!")
             return redirect('dat_ban')
        
+        if not request.user.is_authenticated:
+            request.session['tam_thoi_dat_ban'] = {
+                'ten_khach_hang': ten_khach,
+                'so_dien_thoai': sdt,
+                'ngay_dat': ngay,
+                'gio_dat': gio_str,
+                'so_nguoi': so_nguoi,
+                'ghi_chu': ghi_chu,
+                'tong_tien_coc': tien_coc
+            }
+            messages.warning(request, "Vui lòng đăng nhập tài khoản để hoàn tất đặt bàn!")
+            return redirect('/login/') 
+        
         DatBan.objects.create(
             ten_khach_hang=ten_khach,
             so_dien_thoai=sdt,
@@ -223,7 +288,6 @@ def thuc_don(request):
         action = request.POST.get("action")
         post_ban_id = request.POST.get("ban_id")
 
-        # fix ban_id POST
         try:
             post_ban_id = int(post_ban_id)
         except (TypeError, ValueError):
@@ -257,7 +321,6 @@ def thuc_don(request):
             ban.trang_thai = "DangPhucVu"
             ban.save()
 
-        # ===== UPDATE / DELETE =====
         elif action == "update_all":
             delete_id = request.POST.get("delete_id")
 
@@ -415,3 +478,29 @@ def chi_tiet_ban(request, ban_id):
         'chi_tiet_list': chi_tiet_list,
         'tong_tien': tong_tien
     })
+
+@login_required(login_url='/login/')
+def hoan_tat_dat_ban(request):
+    list(messages.get_messages(request))
+    # Rút dữ liệu từ Session ra
+    if 'tam_thoi_dat_ban' in request.session:
+        data = request.session['tam_thoi_dat_ban']
+        
+        # Tạo đơn
+        DatBan.objects.create(
+            ten_khach_hang=data['ten_khach_hang'],
+            so_dien_thoai=data['so_dien_thoai'],
+            ngay_dat=data['ngay_dat'],
+            gio_dat=data['gio_dat'],
+            so_nguoi=data['so_nguoi'],
+            ghi_chu=data['ghi_chu'],
+            tong_tien_coc=data['tong_tien_coc'],
+            ban=None,
+            trang_thai='ChoXacNhan'
+        )
+        
+
+        del request.session['tam_thoi_dat_ban']
+        messages.success(request, '✅ Đăng nhập và Đặt bàn thành công! Vui lòng chờ xác nhận.')
+    
+    return redirect('dat_ban') 
