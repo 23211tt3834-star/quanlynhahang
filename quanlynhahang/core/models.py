@@ -99,7 +99,7 @@ class DanhGia(models.Model):
     ten_khach_hang = models.CharField(max_length=100, blank=True, null=True)
     diem_danh_gia = models.IntegerField(blank=True, null=True)
     noi_dung = models.TextField(blank=True, null=True)
-    thoi_gian_tao = models.DateTimeField(blank=True, null=True)
+    thoi_gian_tao = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         managed = False
@@ -258,3 +258,10 @@ class DatBan(models.Model):
 
     def __str__(self):
         return f"{self.ten_khach_hang} - {self.ngay_dat} {self.gio_dat}"
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    so_dien_thoai = models.CharField(max_length=15, blank=True)
+    dia_chi = models.CharField(max_length=255, blank=True)
+    diem_tich_luy = models.IntegerField(default=0)
+    def __str__(self):
+        return self.user.username

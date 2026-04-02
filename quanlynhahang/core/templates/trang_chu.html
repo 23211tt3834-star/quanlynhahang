@@ -73,59 +73,28 @@
         /* Chỉnh màu cho Phân trang */
         .page-link { color: #333; }
         .page-item.active .page-link { background-color: #e65c00; border-color: #e65c00; color: white; }
+        
+        .dropdown:hover .dropdown-menu {
+            display: block;
+            margin-top: 0;
+        }
+
+        
+        .dropdown-menu {
+            transition: all 0.2s ease;
+        }
+
+        
+        .dropdown-item:hover {
+            background-color: #fff3e0;
+            color: #e65c00;
+        }
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg bg-white shadow-sm py-3">
-        <div class="container">
-            <a class="navbar-brand text-orange fs-3" href="#">
-                <img src="{% static 'image/logo1.png' %}" height="45" alt="Logo">
-            </a>
-            <div class="collapse navbar-collapse justify-content-center">
-                <ul class="navbar-nav fw-medium">
-                    <li class="nav-item"><a class="nav-link text-dark mx-2" href="{% url 'trang_chu' %}">Trang chủ</a></li>
-                    <li class="nav-item"><a class="nav-link text-dark mx-2" href="{% url 'thuc_don' %}">Thực đơn</a></li>
-                    <li class="nav-item"><a class="nav-link text-dark mx-2" href="{% url 'dat_ban' %}">Đặt bàn</a></li>
-                    <li class="nav-item"><a class="nav-link text-dark mx-2" href="#">Liên hệ</a></li>
-                </ul>
-            </div>
-            <div>
-                {% if user.is_authenticated %}
-                    <span>Xin chào, 
-                        {% if request.user.is_authenticated %}
-                            {% if request.user.is_staff %}
-                                <a href="/admin/" style="color: #d35400; font-weight: bold; text-decoration: none;">
-                                    {{ request.user.username }}
-                                </a>
-                            {% else %}
-                                <strong style="color: #333;">{{ request.user.username }}</strong>
-                            {% endif %}
-                        {% else %}
-                            <a href="/login/">Khách</a>
-                        {% endif %}
-                    </span>
-                    <form action="/logout/" method="post" style="display:inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-dark btn-sm ms-2">Đăng xuất</button>
-                    </form>
-                {% else %}
-                    <a href="/login/" class="btn btn-outline-dark btn-sm me-2">Đăng nhập</a>
-                    <a href="#" class="btn btn-orange btn-sm">Đăng ký</a>
-                {% endif %}
-            </div>
-        </div>
-    </nav>
+    {% include 'navbar_user.html' %}
 
-    {% if request.user.is_authenticated and request.user.is_staff %}
-    <div class="bg-warning text-dark text-center py-2 shadow-sm">
-        <span class="fw-bold me-3">🛠️ Khu vực dành cho Nhân Viên / Quản Lý</span>
-        <a href="/nhan-vien/" class="btn btn-danger btn-sm fw-bold px-4 py-1 rounded-pill shadow">
-            🚀 VÀO MÀN HÌNH LÀM VIỆC (POS)
-        </a>
-    </div>
-    {% endif %}
-    
     <div class="hero-section">
         <div class="container">
             <h1 class="display-5 fw-bold mb-4">HƯƠNG VỊ TUYỆT HẢO – PHỤC VỤ TẬN TÂM</h1>
@@ -230,9 +199,9 @@
 
             <div class="col-md-4 text-center">
                 {% if user.is_authenticated %}
-                <button class="btn btn-orange btn-lg rounded-pill shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#modalDanhGia">
-                    ✍️ Viết Đánh Giá
-                </button>
+                <a href="/danh-gia/" class="btn btn-orange btn-lg rounded-pill shadow-sm px-4">
+                    Viết Đánh Giá
+                </a>
                 {% else %}
                 <a href="/login/" class="btn btn-outline-orange rounded-pill px-4">Đăng nhập để đánh giá</a>
                 {% endif %}
@@ -300,62 +269,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalDanhGia" tabindex="-1" aria-labelledby="modalDanhGiaLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-light">
-                    <h5 class="modal-title fw-bold" id="modalDanhGiaLabel">✍️ Viết Đánh Giá Của Bạn</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                
-                <form method="POST" action="{% url 'trang_chu' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="submit_danh_gia" value="1">
-                    
-                    <div class="modal-body p-4">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Bạn ấn tượng với món nào nhất?</label>
-                            
-                            {% if danh_sach_mon_da_an %}
-                                <select class="form-select border-orange" name="mon_an_id" required>
-                                    <option value="" disabled selected>-- Chọn món bạn đã thưởng thức --</option>
-                                    {% for mon in danh_sach_mon_da_an %}
-                                        <option value="{{ mon.id }}">{{ mon.ten_mon }}</option>
-                                    {% endfor %}
-                                </select>
-                            {% else %}
-                                <select class="form-select bg-light text-muted" name="mon_an_id" disabled>
-                                    <option value="" disabled selected>Bạn cần mua/đặt món trước khi đánh giá</option>
-                                </select>
-                                <small class="text-danger mt-1 d-block"><i class="bi bi-info-circle"></i> Hệ thống chỉ ghi nhận đánh giá từ khách hàng đã trải nghiệm món ăn thực tế.</small>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Chất lượng thế nào?</label>
-                            <select class="form-select text-warning fw-bold" name="diem_danh_gia" required {% if not danh_sach_mon_da_an %}disabled{% endif %}>
-                                <option value="5" selected>⭐⭐⭐⭐⭐ - Tuyệt vời</option>
-                                <option value="4">⭐⭐⭐⭐ - Rất tốt</option>
-                                <option value="3">⭐⭐⭐ - Bình thường</option>
-                                <option value="2">⭐⭐ - Khá tệ</option>
-                                <option value="1">⭐ - Quá tệ</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Chia sẻ thêm cảm nhận của bạn:</label>
-                            <textarea class="form-control" name="noi_dung" rows="4" placeholder="Món ăn ngon, phục vụ tốt..." required {% if not danh_sach_mon_da_an %}disabled{% endif %}></textarea>
-                        </div>
-                    </div>
-                    
-                    <div class="modal-footer border-0 pb-4 justify-content-center">
-                        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" class="btn btn-orange px-5" {% if not danh_sach_mon_da_an %}disabled{% endif %}>Gửi Đánh Giá</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    
 
     <footer class="footer text-center text-md-start">
         <div class="container">

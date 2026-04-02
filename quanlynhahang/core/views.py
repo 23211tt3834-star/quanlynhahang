@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import MonAn, LoaiMon, DanhGia
-from .models import Ban, DatBan, DonHang, ChiTietDonHang
+from .models import Ban, DatBan, DonHang, ChiTietDonHang, User, Profile, DanhGia
 from django.http import HttpResponse
 from django.contrib import messages
 from datetime import datetime, timedelta
@@ -8,10 +8,14 @@ from django.contrib.auth.decorators import user_passes_test, login_required
 from django.db.models import Avg
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect
-from django.contrib import messages
-from .models import LoaiMon, MonAn, DanhGia
 from django.db.models import Q
 
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+
+import random
+from django.core.mail import send_mail
+import string
 
 def trang_chu(request):
     danh_sach_loai = LoaiMon.objects.all()
@@ -115,6 +119,7 @@ def dat_ban_view(request):
             return redirect('/login/') 
         
         DatBan.objects.create(
+            user=request.user,
             ten_khach_hang=ten_khach,
             so_dien_thoai=sdt,
             ngay_dat=ngay,
@@ -504,3 +509,175 @@ def hoan_tat_dat_ban(request):
         messages.success(request, '✅ Đăng nhập và Đặt bàn thành công! Vui lòng chờ xác nhận.')
     
     return redirect('dat_ban') 
+
+def register(request):
+    show_otp_modal = False
+
+    if request.method == "POST" and "otp" in request.POST:
+        otp_input = request.POST.get("otp")
+        data = request.session.get('register_data')
+
+        if not data:
+            messages.error(request, "Hết phiên, vui lòng đăng ký lại")
+            return redirect('register')
+
+        if otp_input == data['otp']:
+            User.objects.create_user(
+                username=data['username'],
+                email=data['email'],
+                password=data['password']
+            )
+
+            del request.session['register_data']
+
+            messages.success(request, "Đăng ký thành công!")
+        else:
+            messages.error(request, "OTP không đúng")
+            show_otp_modal = True
+
+    elif request.method == "POST":
+        username = request.POST['username']
+        email = request.POST['email']
+        password1 = request.POST['password1']
+        password2 = request.POST['password2']
+
+        if password1 != password2:
+            messages.error(request, "Mật khẩu không khớp")
+            return redirect('register')
+
+        if User.objects.filter(email=email).exists():
+            messages.error(request, "Email đã tồn tại")
+            return redirect('register')
+
+        try:
+            validate_password(password1)
+        except ValidationError as e:
+            for error in e.messages:
+                messages.error(request, f"❌ {error}")
+            return redirect('register')
+
+        
+        otp = str(random.randint(100000, 999999))
+
+        request.session['register_data'] = {
+            'username': username,
+            'email': email,
+            'password': password1,
+            'otp': otp
+        }
+
+        send_mail(
+            'Mã OTP đăng ký',
+            f'Mã OTP của bạn là: {otp}',
+            'your_email@gmail.com',
+            [email],
+            fail_silently=False,
+        )
+
+        messages.success(request, "OTP đã gửi tới email")
+        show_otp_modal = True
+
+    return render(request, 'register.html', {
+        'show_otp_modal': show_otp_modal
+    })
+
+def forgot_password(request):
+
+    if request.method == "POST":
+        email = request.POST.get("email")
+
+        try:
+            user = User.objects.get(email=email)
+           
+            new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+
+            user.set_password(new_password)
+            user.save()
+            
+            send_mail(
+                subject="Thông tin tài khoản",
+                message=f"""
+Xin chào {user.username}
+
+Tên đăng nhập: {user.username}
+Mật khẩu mới: {new_password}
+
+Vui lòng đăng nhập và đổi lại mật khẩu.
+                """,
+                from_email="your_email@gmail.com",
+                recipient_list=[email],
+                fail_silently=False,
+            )
+
+            messages.success(request, "Đã gửi thông tin qua email!")
+
+        except User.DoesNotExist:
+            messages.error(request, "Email không tồn tại!")
+
+    return render(request, "forgot_password.html")
+
+@login_required
+def tai_khoan(request):
+    profile, created = Profile.objects.get_or_create(user=request.user)
+
+    if request.method == "POST":
+
+        if "doi_mat_khau" not in request.POST:
+            request.user.email = request.POST.get("email")
+            profile.so_dien_thoai = request.POST.get("so_dien_thoai")
+            profile.dia_chi = request.POST.get("dia_chi")
+
+            request.user.save()
+            profile.save()
+
+            messages.success(request, "Cập nhật thành công!")
+        
+        else:
+            old = request.POST.get("mat_khau_cu")
+            new = request.POST.get("mat_khau_moi")
+
+            if request.user.check_password(old):
+                request.user.set_password(new)
+                request.user.save()
+                messages.success(request, "Đổi mật khẩu thành công!")
+                return redirect("/login/")
+            else:
+                messages.error(request, "Mật khẩu cũ không đúng!")
+
+    return render(request, "tai_khoan.html", {"profile": profile})
+
+def danh_gia_view(request):
+    if request.method == "POST":
+        ten_khach_hang = request.POST.get("ten_khach_hang")
+        mon_an_id = request.POST.get("mon_an")
+        diem_danh_gia = request.POST.get("diem_danh_gia")
+        noi_dung = request.POST.get("noi_dung")
+
+        if ten_khach_hang and mon_an_id and diem_danh_gia and noi_dung:
+            mon_an = MonAn.objects.get(id=mon_an_id)
+            DanhGia.objects.create(
+                ten_khach_hang=ten_khach_hang,
+                mon_an=mon_an,
+                diem_danh_gia=int(diem_danh_gia),
+                noi_dung=noi_dung
+            )
+
+            messages.success(request, "🎉 Gửi đánh giá thành công!")
+            return redirect('danh_gia_view')
+
+        else:
+            messages.error(request, "Vui chọn sao")
+
+    mon_ans = MonAn.objects.all()
+    danh_gias = DanhGia.objects.all().order_by('-thoi_gian_tao')
+    return render(request, 'danh_gia.html', {
+        'mon_ans': mon_ans,
+        'danh_gias': danh_gias
+    })
+
+def lich_su_dat_ban_view(request):
+    don_dat_ban = DatBan.objects.filter(user=request.user).order_by('-id')
+
+    return render(request, 'lich_su_dat_ban.html', {
+        'don_dat_ban': don_dat_ban
+    })
