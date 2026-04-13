@@ -2,20 +2,34 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    
     <title>Thanh Toán Giả Lập</title>
+    
     <style>
+        /* Chỉnh font chữ, căn giữa toàn bộ nội dung, cách lề trên 50px và set màu nền xám nhạt */
         body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f8f9fa;}
+        
+        /* Chỉnh khung hộp (box) chứa mã QR: Viền đứt khúc màu vàng, nền trắng, bo góc 10px */
         .box { border: 2px dashed #ffc107; padding: 30px; display: inline-block; background: white; border-radius: 10px;}
+        
+        /* Chỉnh nút bấm thanh toán: Nền xanh lá, chữ trắng, bỏ viền, bo góc 5px */
         .btn { background: #28a745; color: white; padding: 15px 30px; border: none; font-size: 18px; cursor: pointer; border-radius: 5px; margin-top: 20px;}
+        
+        /* Hiệu ứng khi di chuột vào nút bấm thì đổi sang màu xanh lá đậm hơn */
         .btn:hover { background: #218838; }
+        
+        /* Chỉnh kích thước mã QR: Rộng tối đa 250px, có viền xám mỏng và bo góc */
         img { max-width: 250px; margin: 20px 0; border: 1px solid #ddd; border-radius: 10px;}
     </style>
 </head>
 <body>
 
     <div class="box">
+        
         <h2>Chuyển khoản đặt cọc (MOCK)</h2>
+        
         <p>Khách hàng: <strong>{{ don.ten_khach_hang }}</strong></p>
+        
         <p>Số tiền cần cọc: <strong style="color: red; font-size: 24px;">{{ don.tong_tien_coc }} VNĐ</strong></p>
         
         <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg" alt="Mã QR Fake">
@@ -23,8 +37,11 @@
         <p><i>(Quét mã trên để chuyển tiền giả lập)</i></p>
 
         <form method="POST">
+            
             {% csrf_token %}
+            
             <button type="submit" class="btn">💳 Tôi Đã Chuyển Khoản (Bấm phát ăn luôn)</button>
+            
         </form>
     </div>
 

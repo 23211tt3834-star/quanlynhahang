@@ -13,14 +13,14 @@
 <style>
 body { background: #f8f8f8; }
 
-/* SIDEBAR */
+/* CSS CHO CỘT BỘ LỌC (SIDEBAR) BÊN TRÁI VÀ BÊN PHẢI */
 .sidebar {
     background: white;
     padding: 15px;
     border-radius: 15px;
 }
 
-/* FILTER */
+/* Các nút bấm lọc (Loại món, Giá) */
 .filter-btn {
     display: block;
     width: 100%;
@@ -32,19 +32,21 @@ body { background: #f8f8f8; }
     background: #f1f1f1;
     font-size: 14px;
 }
+/* Hiệu ứng khi di chuột vào nút lọc */
 .filter-btn:hover {
     background: #e65c00;
     color: white;
 }
+/* Màu của nút lọc khi đang được chọn */
 .filter-active {
     background: #e65c00 !important;
     color: white !important;
 }
 
-/* CARD */
+/* CSS CHO TỪNG MÓN ĂN (CARD) */
 .card img {
     height: 140px;
-    object-fit: cover;
+    object-fit: cover; /* Giúp ảnh không bị méo khi thu phóng */
 }
 
 .price {
@@ -52,10 +54,10 @@ body { background: #f8f8f8; }
     font-weight: bold;
 }
 
-/* MOBILE FIX */
+/* SỬA LỖI GIAO DIỆN TRÊN ĐIỆN THOẠI (Màn hình nhỏ hơn 768px) */
 @media (max-width: 768px){
     .card img {
-        height: 120px;
+        height: 120px; /* Làm ảnh lùn xuống một chút cho vừa màn hình điện thoại */
     }
 }
 </style>
@@ -78,7 +80,6 @@ body { background: #f8f8f8; }
 
 <div class="row g-3">
 
-<!-- FILTER MOBILE -->
 <div class="col-12 d-md-none">
     <button class="btn btn-outline-dark w-100" data-bs-toggle="collapse" data-bs-target="#filterBox">
         Bộ lọc
@@ -88,7 +89,6 @@ body { background: #f8f8f8; }
         <div class="sidebar shadow-sm">
 
             <h6>Loại món</h6>
-
             <a href="/thuc-don/?ban_id={{ ban_id }}"
                class="filter-btn {% if not request.GET.loai %}filter-active{% endif %}">
                 Tất cả
@@ -102,7 +102,6 @@ body { background: #f8f8f8; }
             {% endfor %}
 
             <h6 class="mt-2">Giá</h6>
-
             <a href="?gia=duoi100{% if request.GET.loai %}&loai={{ request.GET.loai }}{% endif %}&ban_id={{ ban_id }}"
                class="filter-btn {% if request.GET.gia == 'duoi100' %}filter-active{% endif %}">
                 Dưới 100k
@@ -122,7 +121,6 @@ body { background: #f8f8f8; }
     </div>
 </div>
 
-<!-- SIDEBAR PC -->
 <div class="col-md-3 d-none d-md-block">
     <div class="sidebar shadow-sm">
 
@@ -160,7 +158,6 @@ body { background: #f8f8f8; }
     </div>
 </div>
 
-<!-- MENU -->
 <div class="{% if ban_id %}col-12 col-md-6{% else %}col-12 col-md-9{% endif %}">
     <div class="row g-3">
 
@@ -184,8 +181,7 @@ body { background: #f8f8f8; }
 
                     {% if ban_id %}
                     <form method="POST">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="add">
+                        {% csrf_token %} <input type="hidden" name="action" value="add">
                         <input type="hidden" name="mon_id" value="{{ mon.id }}">
                         <input type="hidden" name="ban_id" value="{{ ban_id }}">
                         
@@ -203,7 +199,6 @@ body { background: #f8f8f8; }
     </div>
 </div>
 
-<!-- CART -->
 {% if ban_id %}
 <div class="col-12 col-md-3">
     <div class="sidebar shadow-sm">
@@ -218,6 +213,7 @@ body { background: #f8f8f8; }
             <input type="hidden" name="ban_id" value="{{ ban_id }}">
 
             <ul class="list-group mb-3">
+                
                 {% for item in chi_tiet_list %}
                 <li class="list-group-item">
                     <strong>{{ item.mon_an.ten_mon }}</strong>
