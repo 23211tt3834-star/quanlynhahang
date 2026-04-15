@@ -32,8 +32,6 @@ urlpatterns = [
     # Xem danh sách lịch sử các đơn đã đặt của khách hàng
     path('lich-su-dat/', views.lich_su_dat_ban_view, name='lich_su_dat_ban'),
 
-    # Trang thanh toán cho một đơn đặt bàn cụ thể (dựa vào id đơn)
-    path('thanh-toan/<int:dat_ban_id>/', views.thanh_toan_view, name='thanh_toan'),
     # Màn hình chính tổng quan dành cho nhân viên
     path('nhan-vien/', views.man_hinh_nhan_vien, name='man_hinh_nhan_vien'),
     
@@ -60,4 +58,7 @@ urlpatterns = [
 
     # Trang xử lý quên mật khẩu
     path('forgot-password/', views.forgot_password, name='forgot_password'),
+
+    # xử lý nút thanh toán
+    path('thanh-toan/<int:don_hang_id>/', views.xu_ly_thanh_toan, name='thanh_toan'),
 ]

@@ -115,20 +115,14 @@
 
                     {% if don.ban %}
                     <a href="{% url 'chi_tiet_ban' don.ban.id %}" 
-                       class="btn btn-sm btn-outline-primary">
+                    class="btn btn-sm btn-outline-primary">
                         Chi tiết
                     </a>
                     {% endif %}
 
-                    <form method="POST">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="pay">
-                        <input type="hidden" name="ban_id" value="{{ don.ban.id }}">
-
-                        <button class="btn btn-sm btn-success">
-                            Thanh toán
-                        </button>
-                    </form>
+                    <a href="{% url 'thanh_toan' don.id %}" class="btn btn-primary">
+                        Thanh toán
+                    </a>
 
                 </div>
 

@@ -146,22 +146,56 @@ class MonAn(models.Model):
     def __str__(self):
         return self.ten_mon
 
+# --- PHẦN TUI THÊM VÀO VÌ BỒ BỊ THIẾU ---
+class HangThanhVien(models.Model):
+    ten_hang = models.CharField(max_length=50)
+    phan_tram_giam_gia = models.IntegerField(blank=True, null=True, default=0)
+    diem_toi_thieu = models.IntegerField(blank=True, null=True, default=0)
+
+    class Meta:
+        managed = True
+        db_table = 'hang_thanh_vien'
+        verbose_name = 'Hạng thành viên'
+        verbose_name_plural = 'Quản lý Hạng thành viên'
+
+    def __str__(self):
+        return self.ten_hang
+
+class KhachHang(models.Model):
+    ten_khach_hang = models.CharField(max_length=255)
+    so_dien_thoai = models.CharField(unique=True, max_length=20)
+    diem_tich_luy = models.IntegerField(blank=True, null=True, default=0)
+    hang_thanh_vien = models.ForeignKey(HangThanhVien, models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = True
+        db_table = 'khach_hang'
+        verbose_name = 'Khách hàng'
+        verbose_name_plural = 'Quản lý Khách hàng'
+
+    def __str__(self):
+        return f"{self.ten_khach_hang} - {self.so_dien_thoai}"
+# ----------------------------------------
+
 # Lưu trữ đơn hàng tổng của một bàn (Gồm tổng tiền, trạng thái...)
 class DonHang(models.Model):
     ban = models.ForeignKey(Ban, models.DO_NOTHING, blank=True, null=True)
     nhan_vien = models.ForeignKey('NhanVien', models.DO_NOTHING, blank=True, null=True)
+    #khach_hang = models.ForeignKey(KhachHang, models.DO_NOTHING, blank=True, null=True) 
     trang_thai_don = models.CharField(max_length=50, blank=True, null=True)
     tong_tien = models.DecimalField(max_digits=18, decimal_places=0, blank=True, null=True)
     thoi_gian_tao = models.DateTimeField(blank=True, null=True)
+    #khach_hang = models.ForeignKey(KhachHang, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'don_hang'
         verbose_name = 'Đơn hàng'
         verbose_name_plural = 'Quản lý Đơn hàng'
 
     def __str__(self):
         return f"Đơn hàng #{self.id}"
+
 
 # Chi tiết bên trong 1 đơn hàng (Khách gọi món gì, số lượng bao nhiêu)
 class ChiTietDonHang(models.Model):
@@ -179,6 +213,11 @@ class ChiTietDonHang(models.Model):
 
     def __str__(self):
         return f"Chi tiết đơn #{self.don_hang_id} - {self.mon_an.ten_mon}"
+    
+    @property
+    def thanh_tien(self):
+        # Tự động tính thành tiền bằng số lượng nhân đơn giá
+        return self.so_luong * self.gia_luc_ban
 
 # Feedback, đánh giá của khách hàng về món ăn
 class DanhGia(models.Model):
@@ -269,7 +308,6 @@ class Profile(models.Model):
     dia_chi = models.CharField(max_length=255, blank=True)
     diem_tich_luy = models.IntegerField(default=0)
     
-    # Mặc định nếu không ghi managed thì Django vẫn tự hiểu là True
     
     def __str__(self):
         return self.user.username

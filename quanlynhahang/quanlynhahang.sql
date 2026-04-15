@@ -46,18 +46,41 @@ CREATE TABLE ban (
 );
 GO
 
+-- Bảng Hạng thành viên
+CREATE TABLE hang_thanh_vien (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    ten_hang NVARCHAR(50) NOT NULL,
+    phan_tram_giam_gia INT DEFAULT 0,
+    diem_toi_thieu INT DEFAULT 0
+);
+GO
+
+-- Bảng Khách hàng
+CREATE TABLE khach_hang (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    ten_khach_hang NVARCHAR(255) NOT NULL,
+    so_dien_thoai VARCHAR(20) UNIQUE NOT NULL,
+    diem_tich_luy INT DEFAULT 0,
+    hang_thanh_vien_id INT,
+    CONSTRAINT FK_KhachHang_HangThanhVien FOREIGN KEY (hang_thanh_vien_id) 
+        REFERENCES hang_thanh_vien(id) ON DELETE SET NULL
+);
+GO
 -- Bảng Đơn hàng
 CREATE TABLE don_hang (
     id INT IDENTITY(1,1) PRIMARY KEY,
     ban_id INT,
     nhan_vien_id INT,
+    khach_hang_id INT, -- CỘT MỚI THÊM
     trang_thai_don NVARCHAR(50) DEFAULT N'Chờ xử lý',
     tong_tien DECIMAL(18, 0) DEFAULT 0,
-    thoi_gian_tao DATETIME DEFAULT GETDATE(), -- Dùng GETDATE() thay cho CURRENT_TIMESTAMP
+    thoi_gian_tao DATETIME DEFAULT GETDATE(),
     CONSTRAINT FK_DonHang_Ban FOREIGN KEY (ban_id) 
         REFERENCES ban(id) ON DELETE SET NULL,
     CONSTRAINT FK_DonHang_NhanVien FOREIGN KEY (nhan_vien_id) 
-        REFERENCES nhan_vien(id) ON DELETE SET NULL
+        REFERENCES nhan_vien(id) ON DELETE SET NULL,
+    CONSTRAINT FK_DonHang_KhachHang FOREIGN KEY (khach_hang_id)
+        REFERENCES khach_hang(id) ON DELETE SET NULL
 );
 GO
 
@@ -114,8 +137,11 @@ CREATE TABLE dat_ban (
     trang_thai VARCHAR(50) DEFAULT 'ChoXacNhan', -- ChoXacNhan, DaCoc, HoanThanh, DaHuy
     thoi_gian_tao DATETIME DEFAULT GETDATE()
 	CONSTRAINT FK_DatBan_Ban FOREIGN KEY (ban_id) 
-        REFERENCES ban(id) ON DELETE SET NULL
+        REFERENCES ban(id) ON DELETE SET NULL,
 );
+GO
+
+
 GO
 
 -- 1. LOẠI MÓN ĂN (loai_mon)
@@ -205,4 +231,18 @@ INSERT INTO dat_ban (ten_khach_hang, so_dien_thoai, ngay_dat, gio_dat, so_nguoi,
 (N'Nguyễn Thị Thanh Lịch', '0911222333', '2026-03-25', '11:30:00', 4, N'Gia đình có trẻ em, nhờ chuẩn bị 1 ghế em bé. Dị ứng đậu phộng.', 0, 'ChoXacNhan', GETDATE()),
 (N'Phạm Sếp Tổng', '0999888777', '2026-03-22', '20:00:00', 8, N'Tiệc tiếp đối tác quan trọng. Vui lòng xếp phòng VIP-2.', 1000000, 'HoanThanh', '2026-03-10 14:00:00'),
 (N'Hoàng Văn Thanh', '0933444555', '2026-03-19', '19:30:00', 6, N'Hủy do trời mưa ngập đường không đi được.', 0, 'DaHuy', '2026-03-15 09:00:00');
+GO
+--  HẠNG THÀNH VIÊN
+INSERT INTO hang_thanh_vien (ten_hang, phan_tram_giam_gia, diem_toi_thieu) VALUES
+(N'Đồng', 0, 0),
+(N'Bạc', 5, 100),
+(N'Vàng', 10, 500),
+(N'Kim Cương', 15, 1000);
+GO
+
+--  KHÁCH HÀNG
+INSERT INTO khach_hang (ten_khach_hang, so_dien_thoai, diem_tich_luy, hang_thanh_vien_id) VALUES
+(N'Nguyễn Văn Khách VIP', '0999999999', 600, 3), -- Hạng Vàng
+(N'Trần Thị Mới Quen', '0888888888', 150, 2), -- Hạng Bạc
+(N'Lê Vãng Lai', '0777777777', 10, 1); -- Hạng Đồng
 GO
