@@ -75,15 +75,20 @@
                             </div>
 
                             {% if thong_bao_khach %}
-                                <small class="text-danger d-block mb-2 fw-bold">{{ thong_bao_khach }}</small>
+                                <small class="text-{% if '✅' in thong_bao_khach %}success{% else %}danger{% endif %} d-block mb-2 fw-bold">{{ thong_bao_khach }}</small>
                             {% endif %}
 
                             {% if khach_hang %}
                                 <div class="bg-light p-2 rounded border border-success">
-                                    <p class="mb-1">Khách hàng: <strong>{{ khach_hang.ten_khach_hang }}</strong></p>
-                                    <p class="mb-1">Hạng: <span class="badge bg-warning text-dark">{{ khach_hang.hang_thanh_vien.ten_hang }}</span> 
-                                        {% if khach_hang.hang_thanh_vien.phan_tram_giam_gia %}
-                                            <small class="text-danger fw-bold">(Giảm {{ khach_hang.hang_thanh_vien.phan_tram_giam_gia }}%)</small>
+                                    <p class="mb-1">Khách hàng: <strong>{{ khach_hang.user.username }}</strong></p>
+                                    <p class="mb-1">Hạng: 
+                                        {% if khach_hang.hang_thanh_vien %}
+                                            <span class="badge bg-warning text-dark">{{ khach_hang.hang_thanh_vien.ten_hang }}</span> 
+                                            {% if khach_hang.hang_thanh_vien.phan_tram_giam_gia %}
+                                                <small class="text-danger fw-bold">(Giảm {{ khach_hang.hang_thanh_vien.phan_tram_giam_gia }}%)</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">Chưa có hạng</span>
                                         {% endif %}
                                     </p>
                                     <p class="mb-0 text-success small">+ Dự kiến tích thêm: <strong>{{ diem_tich_luy_du_kien }} điểm</strong></p>

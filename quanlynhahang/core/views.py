@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import MonAn, LoaiMon, DanhGia, KhachHang, ThanhToan
+from .models import MonAn, LoaiMon, DanhGia, ThanhToan
 from .models import Ban, DatBan, DonHang, ChiTietDonHang, User, Profile, DanhGia
 from django.http import HttpResponse
 from django.contrib import messages
@@ -728,25 +728,22 @@ def thanh_toan_don(request, don_id):
     # Lấy thông tin đơn hàng và chi tiết các món đã gọi
     don = get_object_or_404(DonHang, id=don_id)
     
-    # Đoạn này bồ tự chỉnh lại tên liên kết (related_name) cho đúng với Model Chi tiết đơn của bồ nha
-    # Ví dụ có thể là: don.chitietdon_set.all() hoặc don.danh_sach_mon.all()
+    # Lấy danh sách chi tiết đơn (Tùy tên related_name của bồ)
     chi_tiet_don = don.chitietdonhang_set.all() 
 
-    # Lấy thông tin khách hàng (Nếu có lưu trong đơn)
-    # Giả sử trong model DonHang bồ có trường khach_hang (ForeignKey trỏ tới bảng KhachHang)
+    # Lấy thông tin khách hàng
     khach_hang = getattr(don, 'khach_hang', None)
 
     # Tính toán các khoản tiền CƠ BẢN
     tong_tien_mon = sum(item.thanh_tien for item in chi_tiet_don)
-    thue_vat = round(tong_tien_mon * 8 / 100) # Thuế VAT 8% (bồ tự đổi nếu cần)
+    thue_vat = round(tong_tien_mon * 8 / 100) # Thuế VAT 8%
     
     # Tính toán ƯU ĐÃI THÀNH VIÊN
     giam_gia_thanh_vien = 0
-    if khach_hang:
-        # Tùy logic hạng của bồ. Ví dụ: Vàng giảm 10%, Bạc giảm 5%
-        if khach_hang.hang_thanh_vien == 'Vàng':
+    if khach_hang and hasattr(khach_hang, 'hang_thanh_vien'):
+        if khach_hang.hang_thanh_vien.ten_hang == 'Vàng':
             giam_gia_thanh_vien = int(tong_tien_mon * 0.10)
-        elif khach_hang.hang_thanh_vien == 'Bạc':
+        elif khach_hang.hang_thanh_vien.ten_hang == 'Bạc':
             giam_gia_thanh_vien = int(tong_tien_mon * 0.05)
 
     # Các biến mặc định cho Voucher
@@ -762,8 +759,7 @@ def thanh_toan_don(request, don_id):
         if action == 'ap_dung_voucher':
             voucher_code = request.POST.get('voucher_code', '').strip()
             
-            # Đoạn này bồ thay bằng logic check database Voucher thật của bồ
-            # Tui làm mock code demo trước nha:
+            # Tạm thời để hardcode demo, sau này bồ nối với bảng Voucher thật
             if voucher_code == "GIAM50K":
                 giam_gia_voucher = 50000
                 thong_bao_voucher = "Áp dụng mã giảm 50K thành công!"
@@ -776,42 +772,38 @@ def thanh_toan_don(request, don_id):
         elif action == 'chot_don_thanh_toan':
             # Lấy phương thức thanh toán khách chọn
             phuong_thuc = request.POST.get('phuong_thuc', 'TienMat')
+            kieu_thanh_toan = "Tiền mặt" if phuong_thuc == "TienMat" else "Chuyển khoản (QR)"
             
-            # Cập nhật trạng thái Đơn hàng
-            don.trang_thai = 'DaThanhToan' # Hoặc 'DaHoanThanh' tùy bồ
-            # Nếu trong model bồ có trường phương thức thanh toán thì lưu luôn:
-            # don.phuong_thuc_thanh_toan = phuong_thuc 
+            # Cập nhật trạng thái Đơn hàng (Đã sửa thành trang_thai_don theo chuẩn DB của bồ)
+            don.trang_thai_don = 'DaThanhToan' 
             don.save()
 
-            # c. Giải phóng bàn (đổi màu xanh trên sơ đồ)
+            # Giải phóng bàn (đổi màu xanh trên sơ đồ)
             if don.ban:
-                don.ban.trang_thai = 'Trong' # Hoặc 'Trống' tùy chữ bồ gán trong database
+                don.ban.trang_thai = 'Trong' # Hoặc 'Trống' tùy chữ gán trong database
                 don.ban.save()
 
-            # d. Cộng điểm tích lũy cho khách hàng (nếu có)
+            # Cộng điểm tích lũy cho khách hàng (nếu có)
             if khach_hang:
-                # Giả sử quy tắc: 10.000đ = 1 điểm
+                # Quy tắc: 10.000đ = 1 điểm
                 tong_thanh_toan_cuoi = tong_tien_mon + thue_vat - giam_gia_thanh_vien - float(request.POST.get('giam_gia_voucher_hidden', 0))
                 diem_cong_them = int(tong_thanh_toan_cuoi / 10000)
                 
-                # Cập nhật điểm vào db
                 khach_hang.diem_tich_luy += diem_cong_them
                 khach_hang.save()
 
-            messages.success(request, f"Đã chốt đơn #{don.id} thành công!")
-            # Tên URL chỗ redirect này bồ nhớ đổi thành tên trang Sơ đồ bàn của bồ nha (vd: 'nhan_vien_index')
+            # BẮN THÔNG BÁO THÀNH CÔNG GỒM PHƯƠNG THỨC THANH TOÁN!
+            messages.success(request, f"🎉 Thanh toán thành công đơn #{don.id} bằng {kieu_thanh_toan}!")
+            
             return redirect('/nhan-vien/') 
 
     # CHUẨN BỊ DỮ LIỆU HIỂN THỊ RA GIAO DIỆN
-    
-    # Tính lại tổng tiền sau khi áp dụng các loại giảm giá
     tong_thanh_toan = tong_tien_mon + thue_vat - giam_gia_thanh_vien - giam_gia_voucher
     
-    # Không để tổng tiền bị âm
     if tong_thanh_toan < 0:
         tong_thanh_toan = 0
 
-    # Dự kiến số điểm khách sẽ nhận được (10k = 1 điểm)
+    # Dự kiến số điểm khách sẽ nhận được
     diem_tich_luy_du_kien = int(tong_thanh_toan / 10000) if khach_hang else 0
 
     context = {
@@ -830,17 +822,17 @@ def thanh_toan_don(request, don_id):
     return render(request, 'thanh_toan.html', context)
 
 
-from django.shortcuts import render, get_object_or_404, redirect
-from django.utils import timezone
-# Nhớ import các Models bồ đang xài nhé: DonHang, KhachHang, ThanhToan...
+
+
+
 
 def xu_ly_thanh_toan(request, don_hang_id):
     don_hang = get_object_or_404(DonHang, id=don_hang_id)
-    chi_tiet_don = don_hang.chi_tiet.all()
+    chi_tiet_don = don_hang.chitietdonhang_set.all()
     
     # 1. TÍNH TIỀN CƠ BẢN VÀ THUẾ VAT (8%)
     tong_tien_mon = sum(item.thanh_tien for item in chi_tiet_don)
-    thue_vat = int(tong_tien_mon * 0.08) 
+    thue_vat = int(float(tong_tien_mon) * 0.08)
     
     giam_gia_voucher = 0
     thong_bao_khach = ""
@@ -849,7 +841,7 @@ def xu_ly_thanh_toan(request, don_hang_id):
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        # --- LUÔN KIỂM TRA VOUCHER ĐẦU TIÊN (Để không bao giờ bị mất voucher) ---
+        # --- LUÔN KIỂM TRA VOUCHER ĐẦU TIÊN ---
         ma_voucher = request.POST.get('voucher_code', '').strip()
         if ma_voucher == 'GIAM50K':
             giam_gia_voucher = 50000
@@ -859,17 +851,22 @@ def xu_ly_thanh_toan(request, don_hang_id):
 
         # --- NÚT 1: TÌM KHÁCH HÀNG BẰNG SĐT ---
         if action == 'tim_khach_hang':
-            sdt_nhap = request.POST.get('so_dien_thoai', '').strip()
+            # Dùng replace để triệt tiêu mọi khoảng trắng lỡ tay gõ dư
+            sdt_nhap = request.POST.get('so_dien_thoai', '').strip().replace(" ", "")
             
             if not sdt_nhap:
                 thong_bao_khach = "⚠️ Vui lòng nhập số điện thoại!"
                 don_hang.khach_hang = None
                 don_hang.save()
             else:
-                khach = KhachHang.objects.filter(so_dien_thoai=sdt_nhap).first()
+                # Bắt đầu tìm trong bảng Profile
+                khach = Profile.objects.filter(so_dien_thoai=sdt_nhap).first()
+                
                 if khach:
                     don_hang.khach_hang = khach
                     don_hang.save()
+                    # Thêm thông báo thành công cho nhân viên yên tâm
+                    thong_bao_khach = f"✅ Đã tìm thấy khách: {khach.user.username}" 
                 else:
                     don_hang.khach_hang = None
                     don_hang.save()
@@ -880,12 +877,16 @@ def xu_ly_thanh_toan(request, don_hang_id):
             giam_gia_tv_chot = 0
             if don_hang.khach_hang and don_hang.khach_hang.hang_thanh_vien:
                 phan_tram = don_hang.khach_hang.hang_thanh_vien.phan_tram_giam_gia or 0
-                giam_gia_tv_chot = int(tong_tien_mon * (phan_tram / 100.0))
+                giam_gia_tv_chot = int(float(tong_tien_mon) * (phan_tram / 100.0))
             
-            tong_thanh_toan_chot = tong_tien_mon + thue_vat - giam_gia_tv_chot - giam_gia_voucher
+            tong_thanh_toan_chot = float(tong_tien_mon) + thue_vat - giam_gia_tv_chot - giam_gia_voucher
             tong_thanh_toan_chot = max(0, int(tong_thanh_toan_chot)) 
 
             phuong_thuc = request.POST.get('phuong_thuc', 'TienMat')
+            
+            # Đổi tên hiển thị cho đẹp để đưa vào thông báo
+            kieu_thanh_toan = "Tiền mặt" if phuong_thuc == "TienMat" else "Chuyển khoản (QR)"
+
             thanh_toan, created = ThanhToan.objects.get_or_create(don_hang=don_hang)
             thanh_toan.phuong_thuc = phuong_thuc
             thanh_toan.trang_thai_thanh_toan = 'Đã thanh toán'
@@ -894,6 +895,7 @@ def xu_ly_thanh_toan(request, don_hang_id):
 
             don_hang.tong_tien = tong_thanh_toan_chot
             don_hang.trang_thai_don = 'Đã hoàn thành'
+            
             if don_hang.ban:
                 don_hang.ban.trang_thai = 'Trống' 
                 don_hang.ban.save()
@@ -904,15 +906,17 @@ def xu_ly_thanh_toan(request, don_hang_id):
                 don_hang.khach_hang.diem_tich_luy += diem_cong
                 don_hang.khach_hang.save()
 
-            return redirect('trang_chu') 
+            # 🔥 BẮN THÔNG BÁO THÀNH CÔNG VÀ CHUYỂN HƯỚNG VỀ ĐÚNG TRANG SƠ ĐỒ BÀN
+            messages.success(request, f"Thanh toán thành công đơn #{don_hang.id} bằng {kieu_thanh_toan}!")
+            return redirect('dashboard') 
 
     # 2. TÍNH TOÁN LẠI ĐỂ HIỂN THỊ RA GIAO DIỆN MỖI LẦN TẢI
     giam_gia_thanh_vien = 0
     if don_hang.khach_hang and don_hang.khach_hang.hang_thanh_vien:
         phan_tram = don_hang.khach_hang.hang_thanh_vien.phan_tram_giam_gia or 0
-        giam_gia_thanh_vien = int(tong_tien_mon * (phan_tram / 100.0))
+        giam_gia_thanh_vien = int(float(tong_tien_mon) * (phan_tram / 100.0))
 
-    tong_thanh_toan = tong_tien_mon + thue_vat - giam_gia_thanh_vien - giam_gia_voucher
+    tong_thanh_toan = float(tong_tien_mon) + thue_vat - giam_gia_thanh_vien - giam_gia_voucher
     tong_thanh_toan = max(0, int(tong_thanh_toan))
     
     diem_tich_luy_du_kien = int(tong_thanh_toan / 100000) if don_hang.khach_hang else 0
