@@ -98,35 +98,10 @@
     </div>
 </div>
 
-<div class="modal fade" id="otpModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content p-4">
-      <h5 class="text-center mb-3">Nhập mã OTP</h5>
-
-      <form method="post">
-        {% csrf_token %}
-        <input type="text" name="otp" class="form-control mb-3" placeholder="Nhập OTP">
-        <button class="btn btn-success w-100">Xác nhận</button>
-      </form>
-    </div>
-  </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-<script>
-// Nhận biến 'show_otp_modal' từ Python (Django). Nếu Python gửi True, biến showOtp = true.
-var showOtp = "{{ show_otp_modal|yesno:'true,false' }}" === "true";
 
-// Nếu cần hiện OTP
-if (showOtp) {
-    // Đợi 300ms (0.3 giây) cho trang load xong rồi mới bật Modal lên
-    setTimeout(() => {
-        var myModal = new bootstrap.Modal(document.getElementById('otpModal'));
-        myModal.show();
-    }, 300);
-}
-</script>
 
 <script>
 // Lấy ô nhập mật khẩu và cái khung để in lỗi ra

@@ -146,7 +146,7 @@ class MonAn(models.Model):
     def __str__(self):
         return self.ten_mon
 
-# --- PHẦN TUI THÊM VÀO VÌ BỒ BỊ THIẾU ---
+# Hạng thành viên
 class HangThanhVien(models.Model):
     ten_hang = models.CharField(max_length=50)
     phan_tram_giam_gia = models.IntegerField(blank=True, null=True, default=0)

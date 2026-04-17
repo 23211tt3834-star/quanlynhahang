@@ -28,6 +28,7 @@
         .ChoXacNhan { color: orange; } /* Chờ xác nhận: màu cam */
         .DaXacNhan { color: green; }  /* Đã xác nhận: màu xanh lá */
         .DaHuy { color: red; }        /* Đã hủy: màu đỏ */
+        .DaThanhToan { color: green}
 
         /* CSS cho cái khung chứa bộ lọc ở trên cùng */
         .filter-box {
@@ -70,6 +71,7 @@
                     <option value="">-- Tất cả trạng thái --</option>
                     <option value="ChoXacNhan">Chờ xác nhận</option>
                     <option value="DaXacNhan">Đã xác nhận</option>
+                    <option value="DaThanhToan">Đã thanh toán</option>
                     <option value="DaHuy">Đã hủy</option>
                 </select>
             </div>
@@ -141,15 +143,16 @@
                             <button type="submit" name="action" value="change_table" class="btn btn-success btn-sm">
                                 Chuyển bàn
                             </button>
+                        
                         {% endif %}
 
-                        {% if item.trang_thai != "DaHuy" %}
+                        {% if item.trang_thai != "DaHuy" and item.trang_thai != "DaThanhToan"  %}
                             <button type="submit" name="action" value="cancel" class="btn btn-danger btn-sm">
                                 Hủy
                             </button>
                         {% endif %}
 
-                        {% if item.trang_thai == "DaHuy" or item.trang_thai == "DaHoanThanh" %}
+                        {% if item.trang_thai == "DaHuy" or item.trang_thai == "DaThanhToan" %}
                             <button type="button" onclick="openDeleteModal('{{ item.id }}')" class="btn btn-outline-danger btn-sm">
                                 Xóa
                             </button>

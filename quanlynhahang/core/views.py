@@ -11,10 +11,10 @@ from django.shortcuts import render, redirect
 from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError
 from .models import DonHang, ThanhToan
 import random
-from django.core.mail import send_mail
 import string
 
 def trang_chu(request):
@@ -59,6 +59,23 @@ def trang_chu(request):
     page_number = request.GET.get('page') 
     page_obj = paginator.get_page(page_number)
 
+    # đếm số sao đánh giá
+    sao_5 = toan_bo_danh_gia.filter(diem_danh_gia=5).count()
+    sao_4 = toan_bo_danh_gia.filter(diem_danh_gia=4).count()
+    sao_3 = toan_bo_danh_gia.filter(diem_danh_gia=3).count()
+    sao_2 = toan_bo_danh_gia.filter(diem_danh_gia=2).count()
+    sao_1 = toan_bo_danh_gia.filter(diem_danh_gia=1).count()
+
+    def tinh_pt(sao):
+        return (sao / tong_danh_gia * 100) if tong_danh_gia > 0 else 0
+
+    pt_5 = tinh_pt(sao_5)
+    pt_4 = tinh_pt(sao_4)
+    pt_3 = tinh_pt(sao_3)
+    pt_2 = tinh_pt(sao_2)
+    pt_1 = tinh_pt(sao_1)
+
+
     # Đóng gói dữ liệu gửi ra giao diện HTML
     context = {
         'danh_sach_loai': danh_sach_loai,
@@ -67,6 +84,18 @@ def trang_chu(request):
         'tong_danh_gia': tong_danh_gia,        
         'diem_trung_binh': diem_trung_binh,    
         'danh_sach_mon_da_an': danh_sach_mon_da_an, 
+
+        'sao_5': sao_5,
+        'sao_4': sao_4,
+        'sao_3': sao_3,
+        'sao_2': sao_2,
+        'sao_1': sao_1,
+
+        'pt_5': pt_5,
+        'pt_4': pt_4,
+        'pt_3': pt_3,
+        'pt_2': pt_2,
+        'pt_1': pt_1,
     }
     return render(request, 'trang_chu.html', context)
 
@@ -359,6 +388,10 @@ def thuc_don(request):
 
             if delete_id:
                 ChiTietDonHang.objects.filter(id=delete_id).delete()
+
+                
+                return redirect(f"/thuc-don/?ban_id={post_ban_id}")
+
             else:
                 chi_tiet_list = ChiTietDonHang.objects.filter(don_hang=don)
 
@@ -369,12 +402,13 @@ def thuc_don(request):
                         so_luong = int(so_luong)
 
                         if so_luong <= 0:
-                            item.delete() # Xóa nếu set số lượng về 0
+                            item.delete()
                         else:
                             item.so_luong = so_luong
                             item.save()
 
-            return redirect("chi_tiet_ban", ban_id=post_ban_id)
+                
+                return redirect("chi_tiet_ban", ban_id=post_ban_id)
 
         # ===== REDIRECT SAU ADD =====
         # Giữ nguyên các tham số filter trên URL sau khi reload trang
@@ -453,6 +487,8 @@ def chi_tiet_ban(request, ban_id):
             
             ban.trang_thai = "DangPhucVu"
             ban.save()
+
+            
         
         elif action == "tang":
             chi_tiet = ChiTietDonHang.objects.filter(don_hang=don, mon_an_id=mon_id).first()
@@ -530,122 +566,76 @@ def hoan_tat_dat_ban(request):
         
         # Xóa Session tạm sau khi lưu thành công
         del request.session['tam_thoi_dat_ban']
-        messages.success(request, '✅ Đăng nhập và Đặt bàn thành công! Vui lòng chờ xác nhận.')
+        messages.success(request, 'Đăng nhập và Đặt bàn thành công! Vui lòng chờ xác nhận.')
     
     return redirect('dat_ban') 
 
+
+
 def register(request):
-    show_otp_modal = False # Biến điều khiển ẩn/hiện popup nhập OTP
+    if request.method == "POST":
+        username = request.POST.get("username")
+        email = request.POST.get("email")
+        password1 = request.POST.get("password1")
+        password2 = request.POST.get("password2")
 
-    # BƯỚC 2: XỬ LÝ KHI USER NHẬP OTP XÁC NHẬN
-    if request.method == "POST" and "otp" in request.POST:
-        otp_input = request.POST.get("otp")
-        data = request.session.get('register_data')
-
-        if not data:
-            messages.error(request, "Hết phiên, vui lòng đăng ký lại")
-            return redirect('register')
-
-        if otp_input == data['otp']:
-            # OTP đúng -> Khởi tạo tài khoản thực trong DB
-            User.objects.create_user(
-                username=data['username'],
-                email=data['email'],
-                password=data['password']
-            )
-            del request.session['register_data']
-            messages.success(request, "Đăng ký thành công!")
-        else:
-            messages.error(request, "OTP không đúng")
-            show_otp_modal = True
-
-    # BƯỚC 1: XỬ LÝ FORM ĐĂNG KÝ (CHƯA CÓ OTP)
-    elif request.method == "POST":
-        username = request.POST['username']
-        email = request.POST['email']
-        password1 = request.POST['password1']
-        password2 = request.POST['password2']
-
-        # Validate dữ liệu đầu vào
+        # check mật khẩu
         if password1 != password2:
             messages.error(request, "Mật khẩu không khớp")
-            return redirect('register')
+            return redirect("register")
+
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Tên đăng nhập đã tồn tại")
+            return redirect("register")
 
         if User.objects.filter(email=email).exists():
             messages.error(request, "Email đã tồn tại")
-            return redirect('register')
+            return redirect("register")
 
+        # validate password
         try:
-            validate_password(password1) # Check độ mạnh mật khẩu của Django
+            validate_password(password1)
         except ValidationError as e:
             for error in e.messages:
-                messages.error(request, f"❌ {error}")
-            return redirect('register')
+                messages.error(request, error)
+            return redirect("register")
 
-        # Tạo OTP ngẫu nhiên 6 số và lưu tạm info vào Session
-        otp = str(random.randint(100000, 999999))
-
-        request.session['register_data'] = {
-            'username': username,
-            'email': email,
-            'password': password1,
-            'otp': otp
-        }
-
-        # Gửi email chứa mã OTP cho user
-        send_mail(
-            'Mã OTP đăng ký',
-            f'Mã OTP của bạn là: {otp}',
-            'your_email@gmail.com',
-            [email],
-            fail_silently=False,
+        User.objects.create_user(
+            username=username,
+            email=email,
+            password=password1
         )
 
-        messages.success(request, "OTP đã gửi tới email")
-        show_otp_modal = True # Bật cờ để hiển thị modal OTP trên giao diện
+        messages.success(request, "Đăng ký thành công!")
+        return redirect("login")
 
-    return render(request, 'register.html', {
-        'show_otp_modal': show_otp_modal
-    })
+    return render(request, "register.html")
 
 def forgot_password(request):
+    new_password = None
+
     if request.method == "POST":
+        username = request.POST.get("username")
         email = request.POST.get("email")
 
         try:
-            # Tìm user bằng email trong hệ thống
-            user = User.objects.get(email=email)
-            
-            # Tạo ngẫu nhiên một mật khẩu mới gồm 8 ký tự (chữ và số)
+            user = User.objects.get(username=username, email=email)
+
+            # tạo mật khẩu mới
             new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
 
-            # Cập nhật mật khẩu mới cho user và lưu lại
+            # cập nhật mật khẩu
             user.set_password(new_password)
             user.save()
-            
-            # Gửi email chứa tài khoản và mật khẩu mới cho khách hàng
-            send_mail(
-                subject="Thông tin tài khoản",
-                message=f"""
-Xin chào {user.username}
 
-Tên đăng nhập: {user.username}
-Mật khẩu mới: {new_password}
-
-Vui lòng đăng nhập và đổi lại mật khẩu.
-                """,
-                from_email="your_email@gmail.com",
-                recipient_list=[email],
-                fail_silently=False,
-            )
-
-            messages.success(request, "Đã gửi thông tin qua email!")
+            messages.success(request, "Đã tạo mật khẩu mới!")
 
         except User.DoesNotExist:
-            # Báo lỗi nếu email nhập vào không khớp với tài khoản nào
-            messages.error(request, "Email không tồn tại!")
+            messages.error(request, "Sai tài khoản hoặc email!")
 
-    return render(request, "forgot_password.html")
+    return render(request, "forgot_password.html", {
+        "new_password": new_password
+    })
 
 # Bắt buộc phải đăng nhập mới được vào xem thông tin tài khoản
 @login_required
@@ -894,17 +884,24 @@ def xu_ly_thanh_toan(request, don_hang_id):
             thanh_toan.save()
 
             don_hang.tong_tien = tong_thanh_toan_chot
-            don_hang.trang_thai_don = 'Đã hoàn thành'
+            don_hang.trang_thai_don = 'DaThanhToan'
             
             if don_hang.ban:
-                don_hang.ban.trang_thai = 'Trống' 
+                don_hang.ban.trang_thai = 'Trong' 
                 don_hang.ban.save()
             don_hang.save()
-
+            
             if don_hang.khach_hang:
                 diem_cong = int(tong_thanh_toan_chot / 100000)
                 don_hang.khach_hang.diem_tich_luy += diem_cong
                 don_hang.khach_hang.save()
+            
+            
+            dat_ban = DatBan.objects.filter(ban=don_hang.ban_id).first()
+
+            if dat_ban:
+                dat_ban.trang_thai = 'DaThanhToan'
+                dat_ban.save()
 
             # 🔥 BẮN THÔNG BÁO THÀNH CÔNG VÀ CHUYỂN HƯỚNG VỀ ĐÚNG TRANG SƠ ĐỒ BÀN
             messages.success(request, f"Thanh toán thành công đơn #{don_hang.id} bằng {kieu_thanh_toan}!")
