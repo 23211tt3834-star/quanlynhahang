@@ -294,6 +294,19 @@ class Profile(models.Model):
     diem_tich_luy = models.IntegerField(default=0)
     hang_thanh_vien = models.ForeignKey(HangThanhVien, models.DO_NOTHING, blank=True, null=True)
     
-    
+    def save(self, *args, **kwargs):
+        # TỰ ĐỘNG XÉT THĂNG HẠNG DỰA TRÊN ĐIỂM TÍCH LŨY
+        # Lấy hạng có điểm tối thiểu nhỏ hơn hoặc bằng điểm hiện tại của khách, 
+        # ưu tiên lấy hạng cao nhất (sắp xếp giảm dần)
+        hang_xung_dang = HangThanhVien.objects.filter(
+            diem_toi_thieu__lte=self.diem_tich_luy
+        ).order_by('-diem_toi_thieu').first()
+
+        # Nếu tìm thấy hạng và nó khác hạng hiện tại thì mới cập nhật
+        if hang_xung_dang and self.hang_thanh_vien != hang_xung_dang:
+            self.hang_thanh_vien = hang_xung_dang
+
+        super().save(*args, **kwargs)
+        
     def __str__(self):
         return self.user.username

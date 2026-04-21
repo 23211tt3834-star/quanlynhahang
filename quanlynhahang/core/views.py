@@ -817,12 +817,19 @@ def thanh_toan_don(request, don_id):
 
 
 def xu_ly_thanh_toan(request, don_hang_id):
-    don_hang = get_object_or_404(DonHang, id=don_hang_id)
+    # TỐI ƯU 1: Dùng select_related để kéo luôn data khách hàng và hạng từ đầu
+    don_hang = get_object_or_404(DonHang.objects.select_related('khach_hang__hang_thanh_vien', 'ban'), id=don_hang_id)
     chi_tiet_don = don_hang.chitietdonhang_set.all()
+
+    if request.method == 'GET':
+        # Nếu đơn hàng chưa thanh toán xong mà lỡ dính khách hàng (do test thử), thì gỡ ra
+        if don_hang.trang_thai_don != 'DaThanhToan' and don_hang.khach_hang:
+            don_hang.khach_hang = None
+            don_hang.save()
     
     # 1. TÍNH TIỀN CƠ BẢN VÀ THUẾ VAT (8%)
-    tong_tien_mon = sum(item.thanh_tien for item in chi_tiet_don)
-    thue_vat = int(float(tong_tien_mon) * 0.08)
+    tong_tien_mon = float(sum(item.thanh_tien for item in chi_tiet_don)) 
+    thue_vat = int(tong_tien_mon * 0.08)
     
     giam_gia_voucher = 0
     thong_bao_khach = ""
@@ -841,7 +848,6 @@ def xu_ly_thanh_toan(request, don_hang_id):
 
         # --- NÚT 1: TÌM KHÁCH HÀNG BẰNG SĐT ---
         if action == 'tim_khach_hang':
-            # Dùng replace để triệt tiêu mọi khoảng trắng lỡ tay gõ dư
             sdt_nhap = request.POST.get('so_dien_thoai', '').strip().replace(" ", "")
             
             if not sdt_nhap:
@@ -849,13 +855,12 @@ def xu_ly_thanh_toan(request, don_hang_id):
                 don_hang.khach_hang = None
                 don_hang.save()
             else:
-                # Bắt đầu tìm trong bảng Profile
-                khach = Profile.objects.filter(so_dien_thoai=sdt_nhap).first()
+                # TỐI ƯU 2: Kéo luôn 'user' và 'hang_thanh_vien' ra cùng lúc
+                khach = Profile.objects.select_related('user', 'hang_thanh_vien').filter(so_dien_thoai=sdt_nhap).first()
                 
                 if khach:
                     don_hang.khach_hang = khach
                     don_hang.save()
-                    # Thêm thông báo thành công cho nhân viên yên tâm
                     thong_bao_khach = f"✅ Đã tìm thấy khách: {khach.user.username}" 
                 else:
                     don_hang.khach_hang = None
@@ -867,65 +872,69 @@ def xu_ly_thanh_toan(request, don_hang_id):
             giam_gia_tv_chot = 0
             if don_hang.khach_hang and don_hang.khach_hang.hang_thanh_vien:
                 phan_tram = don_hang.khach_hang.hang_thanh_vien.phan_tram_giam_gia or 0
-                giam_gia_tv_chot = int(float(tong_tien_mon) * (phan_tram / 100.0))
+                giam_gia_tv_chot = int(tong_tien_mon * (phan_tram / 100.0))
             
-            tong_thanh_toan_chot = float(tong_tien_mon) + thue_vat - giam_gia_tv_chot - giam_gia_voucher
+            tong_thanh_toan_chot = tong_tien_mon + thue_vat - giam_gia_tv_chot - giam_gia_voucher
             tong_thanh_toan_chot = max(0, int(tong_thanh_toan_chot)) 
 
             phuong_thuc = request.POST.get('phuong_thuc', 'TienMat')
-            
-            # Đổi tên hiển thị cho đẹp để đưa vào thông báo
             kieu_thanh_toan = "Tiền mặt" if phuong_thuc == "TienMat" else "Chuyển khoản (QR)"
 
+            # Ghi nhận thanh toán
             thanh_toan, created = ThanhToan.objects.get_or_create(don_hang=don_hang)
             thanh_toan.phuong_thuc = phuong_thuc
             thanh_toan.trang_thai_thanh_toan = 'Đã thanh toán'
             thanh_toan.thoi_gian_thanh_toan = timezone.now()
             thanh_toan.save()
 
+            # Cập nhật đơn hàng và giải phóng bàn
             don_hang.tong_tien = tong_thanh_toan_chot
             don_hang.trang_thai_don = 'DaThanhToan'
+            don_hang.save()
             
             if don_hang.ban:
                 don_hang.ban.trang_thai = 'Trong' 
                 don_hang.ban.save()
-            don_hang.save()
             
+            # Giải phóng đặt bàn (nếu có)
+            if don_hang.ban_id:
+                dat_ban = DatBan.objects.filter(ban_id=don_hang.ban_id, trang_thai='ChoXacNhan').first()
+                if dat_ban:
+                    dat_ban.trang_thai = 'DaThanhToan'
+                    dat_ban.save()
+
+            # TÍNH ĐIỂM TÍCH LŨY (100.000đ = 1 điểm) VÀ TỰ ĐỘNG THĂNG HẠNG
             if don_hang.khach_hang:
                 diem_cong = int(tong_thanh_toan_chot / 100000)
-                don_hang.khach_hang.diem_tich_luy += diem_cong
-                don_hang.khach_hang.save()
-            
-            
-            dat_ban = DatBan.objects.filter(ban=don_hang.ban_id).first()
+                if diem_cong > 0:
+                    don_hang.khach_hang.diem_tich_luy += diem_cong
+                    # Hàm save() này sẽ kích hoạt logic tự động thăng hạng bên model Profile
+                    don_hang.khach_hang.save() 
 
-            if dat_ban:
-                dat_ban.trang_thai = 'DaThanhToan'
-                dat_ban.save()
-
-            # 🔥 BẮN THÔNG BÁO THÀNH CÔNG VÀ CHUYỂN HƯỚNG VỀ ĐÚNG TRANG SƠ ĐỒ BÀN
-            messages.success(request, f"Thanh toán thành công đơn #{don_hang.id} bằng {kieu_thanh_toan}!")
-            return redirect('dashboard') 
+            messages.success(request, f"Thanh toán thành công đơn #{don_hang.id} bằng {kieu_thanh_toan}! Khách được cộng {int(tong_thanh_toan_chot / 100000)} điểm.")
+            return redirect('dashboard') # Thay 'dashboard' bằng url name thực tế của bồ
 
     # 2. TÍNH TOÁN LẠI ĐỂ HIỂN THỊ RA GIAO DIỆN MỖI LẦN TẢI
     giam_gia_thanh_vien = 0
-    if don_hang.khach_hang and don_hang.khach_hang.hang_thanh_vien:
-        phan_tram = don_hang.khach_hang.hang_thanh_vien.phan_tram_giam_gia or 0
-        giam_gia_thanh_vien = int(float(tong_tien_mon) * (phan_tram / 100.0))
+    khach_hien_tai = don_hang.khach_hang 
+    
+    if khach_hien_tai and hasattr(khach_hien_tai, 'hang_thanh_vien') and khach_hien_tai.hang_thanh_vien:
+        phan_tram = khach_hien_tai.hang_thanh_vien.phan_tram_giam_gia or 0
+        giam_gia_thanh_vien = int(tong_tien_mon * (phan_tram / 100.0))
 
-    tong_thanh_toan = float(tong_tien_mon) + thue_vat - giam_gia_thanh_vien - giam_gia_voucher
+    tong_thanh_toan = tong_tien_mon + thue_vat - giam_gia_thanh_vien - giam_gia_voucher
     tong_thanh_toan = max(0, int(tong_thanh_toan))
     
-    diem_tich_luy_du_kien = int(tong_thanh_toan / 100000) if don_hang.khach_hang else 0
+    diem_tich_luy_du_kien = int(tong_thanh_toan / 100000) if khach_hien_tai else 0
 
     context = {
         'don': don_hang,
         'chi_tiet_don': chi_tiet_don,
-        'khach_hang': don_hang.khach_hang,
+        'khach_hang': khach_hien_tai,
         'tong_tien_mon': tong_tien_mon,
         'thue_vat': thue_vat,
         'giam_gia_thanh_vien': giam_gia_thanh_vien,
-        'giam_gia_voucher': int(giam_gia_voucher),
+        'giam_gia_voucher': giam_gia_voucher,
         'tong_thanh_toan': tong_thanh_toan,
         'diem_tich_luy_du_kien': diem_tich_luy_du_kien,
         'thong_bao_khach': thong_bao_khach,

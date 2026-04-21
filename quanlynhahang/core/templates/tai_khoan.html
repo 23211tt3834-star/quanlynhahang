@@ -105,19 +105,13 @@
                 </h6>
 
                 <h4 class="fw-bold mb-1">
-                    {% if profile.diem_tich_luy >= 1500 %}
-                        Kim cương
-                    {% elif profile.diem_tich_luy >= 500 %}
-                        Vàng
-                    {% else %}
-                        Bạc
-                    {% endif %}
+                    {{ profile.hang_thanh_vien.ten_hang|default:"Chưa có hạng" }}
                 </h4>
 
                 <p class="small mb-2">
-                    {% if profile.diem_tich_luy >= 1500 %}
+                    {% if profile.hang_thanh_vien.ten_hang == 'Kim cương' %}
                         Khách VIP - giảm giá cao nhất
-                    {% elif profile.diem_tich_luy >= 500 %}
+                    {% elif profile.hang_thanh_vien.ten_hang == 'Vàng' %}
                         Tích 1500 điểm để lên Kim cương
                     {% else %}
                         Tích 500 điểm để lên Vàng

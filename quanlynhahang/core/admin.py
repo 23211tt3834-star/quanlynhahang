@@ -2,7 +2,7 @@ from django.contrib import admin
 from django import forms
 from django.core.exceptions import ValidationError
 from datetime import date
-from .models import Ban, ChiTietDonHang, DanhGia, DonHang, LoaiMon, MonAn, NhanVien, ThanhToan, DatBan
+from .models import Ban, ChiTietDonHang, DanhGia, DonHang, LoaiMon, MonAn, NhanVien, ThanhToan, DatBan, HangThanhVien, Profile
 
 
 class NhanVienAdminForm(forms.ModelForm):
@@ -203,3 +203,6 @@ class DatBanAdmin(admin.ModelAdmin):
 
 # Loại món không cần form kiểm tra phức tạp nên chỉ cần đăng ký đơn giản như vầy
 admin.site.register(LoaiMon)
+
+admin.site.register(HangThanhVien)
+admin.site.register(Profile)
