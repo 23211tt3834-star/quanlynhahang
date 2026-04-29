@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import MonAn, LoaiMon, DanhGia, ThanhToan
 from .models import Ban, DatBan, DonHang, ChiTietDonHang, User, Profile, DanhGia
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from datetime import datetime, timedelta
 from django.contrib.auth.decorators import user_passes_test, login_required
@@ -859,9 +859,25 @@ def xu_ly_thanh_toan(request, don_hang_id):
                 khach = Profile.objects.select_related('user', 'hang_thanh_vien').filter(so_dien_thoai=sdt_nhap).first()
                 
                 if khach:
-                    don_hang.khach_hang = khach
-                    don_hang.save()
-                    thong_bao_khach = f"✅ Đã tìm thấy khách: {khach.user.username}" 
+                    # TÍNH NĂNG CHỐNG GIAN LẬN: Kiểm tra xem khách này có đang gắn với đơn hàng nào khác chưa thanh toán không
+                    khach_dang_o_ban_khac = DonHang.objects.filter(
+                        khach_hang=khach
+                    ).exclude(
+                        trang_thai_don='DaThanhToan' # Bỏ qua những đơn đã thanh toán xong ở quá khứ
+                    ).exclude(
+                        id=don_hang.id # Bỏ qua chính cái đơn hàng của bàn hiện tại đang thao tác
+                    ).exists()
+
+                    if khach_dang_o_ban_khac:
+                        # Nếu phát hiện đang ngồi bàn khác -> Chặn ngay
+                        don_hang.khach_hang = None
+                        don_hang.save()
+                        thong_bao_khach = f"❌ Lỗi: SĐT này đang được áp dụng ở một bàn khác chưa thanh toán!"
+                    else:
+                        # Nếu hợp lệ -> Gắn khách vào đơn
+                        don_hang.khach_hang = khach
+                        don_hang.save()
+                        thong_bao_khach = f"✅ Đã tìm thấy khách: {khach.user.username}" 
                 else:
                     don_hang.khach_hang = None
                     don_hang.save()
@@ -896,13 +912,19 @@ def xu_ly_thanh_toan(request, don_hang_id):
                 don_hang.ban.trang_thai = 'Trong' 
                 don_hang.ban.save()
             
-            # Giải phóng đặt bàn (nếu có)
+            # Giải phóng đặt bàn (nếu có) - ĐÃ FIX Ở ĐÂY
             if don_hang.ban_id:
-                dat_ban = DatBan.objects.filter(ban_id=don_hang.ban_id, trang_thai='ChoXacNhan').first()
+                dat_ban = DatBan.objects.filter(
+                    ban_id=don_hang.ban_id, 
+                    trang_thai__in=['ChoXacNhan', 'DaXacNhan', 'DaNhanBan']
+                ).first()
                 if dat_ban:
                     dat_ban.trang_thai = 'DaThanhToan'
                     dat_ban.save()
 
+            # --- KHỞI TẠO BIẾN DIEM_CONG MẶC ĐỊNH LÀ 0 ---
+            diem_cong = 0
+            
             # TÍNH ĐIỂM TÍCH LŨY (100.000đ = 1 điểm) VÀ TỰ ĐỘNG THĂNG HẠNG
             if don_hang.khach_hang:
                 diem_cong = int(tong_thanh_toan_chot / 100000)
@@ -911,8 +933,13 @@ def xu_ly_thanh_toan(request, don_hang_id):
                     # Hàm save() này sẽ kích hoạt logic tự động thăng hạng bên model Profile
                     don_hang.khach_hang.save() 
 
-            messages.success(request, f"Thanh toán thành công đơn #{don_hang.id} bằng {kieu_thanh_toan}! Khách được cộng {int(tong_thanh_toan_chot / 100000)} điểm.")
-            return redirect('dashboard') # Thay 'dashboard' bằng url name thực tế của bồ
+            # TÁCH LỜI THÔNG BÁO CHO 2 TRƯỜNG HỢP (CÓ ĐIỂM HOẶC KHÔNG)
+            if diem_cong > 0:
+                messages.success(request, f"Thanh toán thành công đơn #{don_hang.id} bằng {kieu_thanh_toan}! Khách được cộng {diem_cong} điểm.")
+            else:
+                messages.success(request, f"Thanh toán thành công đơn #{don_hang.id} bằng {kieu_thanh_toan}!")
+            
+            return redirect('dashboard') # Nhớ đảm bảo 'dashboard' là url name bồ đang dùng nhé
 
     # 2. TÍNH TOÁN LẠI ĐỂ HIỂN THỊ RA GIAO DIỆN MỖI LẦN TẢI
     giam_gia_thanh_vien = 0
@@ -941,3 +968,55 @@ def xu_ly_thanh_toan(request, don_hang_id):
         'thong_bao_voucher': thong_bao_voucher
     }
     return render(request, 'thanh_toan.html', context)
+
+# 1. Hàm này dành cho điện thoại khi quét mã QR
+def qr_thanh_toan_nhanh(request, don_hang_id):
+    don_hang = get_object_or_404(DonHang, id=don_hang_id)
+    chi_tiet_don = ChiTietDonHang.objects.filter(don_hang=don_hang)
+    
+    # --- TỰ ĐỘNG TÍNH TOÁN LẠI TỔNG TIỀN ---
+    tong_tien_mon = float(sum(item.thanh_tien for item in chi_tiet_don))
+    thue_vat = int(tong_tien_mon * 0.08) # Thuế VAT 8%
+    
+    giam_gia_thanh_vien = 0
+    if don_hang.khach_hang and hasattr(don_hang.khach_hang, 'hang_thanh_vien') and don_hang.khach_hang.hang_thanh_vien:
+        phan_tram = don_hang.khach_hang.hang_thanh_vien.phan_tram_giam_gia or 0
+        giam_gia_thanh_vien = int(tong_tien_mon * (phan_tram / 100.0))
+        
+    # Tính tổng tiền cuối cùng
+    tong_thanh_toan = tong_tien_mon + thue_vat - giam_gia_thanh_vien
+    tong_thanh_toan = max(0, int(tong_thanh_toan))
+
+    if don_hang.trang_thai_don != 'DaThanhToan':
+        # Cập nhật trạng thái VÀ LƯU TỔNG TIỀN
+        don_hang.trang_thai_don = 'DaThanhToan'
+        don_hang.tong_tien = tong_thanh_toan  # <-- Điểm chốt hạ là đây!
+        don_hang.save()
+
+        # Giải phóng bàn
+        if don_hang.ban:
+            don_hang.ban.trang_thai = 'Trong'
+            don_hang.ban.save()
+
+        # Giải phóng đặt bàn
+        if don_hang.ban_id:
+            dat_ban = DatBan.objects.filter(
+                ban_id=don_hang.ban_id, 
+                trang_thai__in=['ChoXacNhan', 'DaXacNhan', 'DaNhanBan']
+            ).first()
+            if dat_ban:
+                dat_ban.trang_thai = 'DaThanhToan'
+                dat_ban.save()
+                
+    context = {
+        'don': don_hang,
+        'chi_tiet_don': chi_tiet_don,
+        'tong_thanh_toan': tong_thanh_toan, # Truyền cái này ra HTML cho chắc ăn
+    }
+    
+    return render(request, 'thanh_toan_mobile.html', context)
+
+# 2. Hàm này dành cho máy tính (trang thanh toán) để tự động hỏi xem đt đã quét chưa
+def kiem_tra_trang_thai_don(request, don_hang_id):
+    don_hang = get_object_or_404(DonHang, id=don_hang_id)
+    return JsonResponse({'trang_thai': don_hang.trang_thai_don})

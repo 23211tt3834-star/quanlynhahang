@@ -61,4 +61,7 @@ urlpatterns = [
 
     # xử lý nút thanh toán
     path('thanh-toan/<int:don_hang_id>/', views.xu_ly_thanh_toan, name='thanh_toan'),
+
+    path('qr-thanh-toan/<int:don_hang_id>/', views.qr_thanh_toan_nhanh, name='qr_thanh_toan_nhanh'),
+    path('api/kiem-tra-don/<int:don_hang_id>/', views.kiem_tra_trang_thai_don, name='kiem_tra_trang_thai_don'),
 ]
