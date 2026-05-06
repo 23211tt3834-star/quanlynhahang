@@ -135,6 +135,12 @@
                             </div>
                             {% endif %}
                             
+                            {% if tien_coc > 0 %}
+                            <div class="summary-row" style="color: #fd7e14; font-weight: bold;">
+                                <span>Đã đặt cọc:</span>
+                                <span>- {{ tien_coc }} đ</span>
+                            </div>
+                            {% endif %}
                             <div class="summary-row total-row mt-2">
                                 <span>TỔNG CỘNG:</span>
                                 <span>{{ tong_thanh_toan }} đ</span>
@@ -164,7 +170,7 @@
                                 <p class="text-success fw-bold small mb-2"><i class="bi bi-phone-vibrate"></i> Dùng điện thoại quét mã hoặc click vào ảnh</p>
                                 
                                 <div class="position-relative d-inline-block">
-                                    <img id="qr_image_dynamic" src="" 
+                                    <img id="qr_image_dynamic" src="data:image/png;base64,{{ qr_code }}" 
                                          alt="Mã QR Thanh Toán" 
                                          class="img-fluid border rounded" 
                                          style="max-width: 200px; cursor: pointer; transition: transform 0.2s;"
@@ -204,12 +210,7 @@
                 // Ẩn nút "Xác nhận" vì chuyển sang chế độ tự động chốt đơn
                 btnChotDon.style.display = 'none'; 
                 
-                // 1. Tự động tạo link QR lấy theo địa chỉ mạng hiện tại của máy tính
-                const currentHost = window.location.origin; // VD: http://192.168.1.5:8000
-                const paymentLink = currentHost + "/qr-thanh-toan/{{ don.id }}/";
-                document.getElementById('qr_image_dynamic').src = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(paymentLink);
-
-                // 2. Bật chức năng hỏi Server liên tục xem điện thoại quét chưa (2 giây 1 lần)
+                // Bật chức năng hỏi Server liên tục xem điện thoại quét chưa (2 giây 1 lần)
                 if (!kiemTraDonInterval) {
                     kiemTraDonInterval = setInterval(kiemTraTrangThaiBangDienThoai, 2000);
                 }
