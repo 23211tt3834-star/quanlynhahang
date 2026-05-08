@@ -1,13 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import MonAn, LoaiMon, DanhGia, ThanhToan
-from .models import Ban, DatBan, DonHang, ChiTietDonHang, User, Profile, DanhGia, Voucher
+from .models import Ban, DatBan, DonHang, ChiTietDonHang, User, Profile, DanhGia, Voucher, ThanhToan
 from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from datetime import datetime, timedelta
 from django.contrib.auth.decorators import user_passes_test, login_required
 from django.db.models import Avg
 from django.core.paginator import Paginator
-from django.shortcuts import render, redirect
 from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.password_validation import validate_password
@@ -19,6 +18,10 @@ import string
 import qrcode, base64
 from io import BytesIO
 from django.urls import reverse
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Sum, F, DecimalField, ExpressionWrapper
+from django.db.models.functions import TruncDate
+
 
 def trang_chu(request):
     # Lấy toàn bộ Loại món và Món ăn từ Database
@@ -126,7 +129,6 @@ def dat_ban_view(request):
         gio_str = request.POST.get('gio_dat')     
         so_nguoi = request.POST.get('so_nguoi')
         ghi_chu = request.POST.get('ghi_chu', '')
-        tien_coc = int(request.POST.get('tong_tien_coc', 0))
 
         if not so_nguoi:
             messages.error(request, "Vui lòng nhập số người")
@@ -134,9 +136,7 @@ def dat_ban_view(request):
 
         so_nguoi = int(so_nguoi)
         
-        if tien_coc == 0:
-            messages.error(request, "Vui lòng chọn loại bàn trước khi đặt!")
-            return redirect('dat_ban')
+        
 
         # Validate ngày tháng: Không cho đặt lùi về ngày trong quá khứ
         try:
@@ -160,7 +160,6 @@ def dat_ban_view(request):
                 'gio_dat': gio_str,
                 'so_nguoi': so_nguoi,
                 'ghi_chu': ghi_chu,
-                'tong_tien_coc': tien_coc
             }
             messages.warning(request, "Vui lòng đăng nhập tài khoản để hoàn tất đặt bàn!")
             return redirect('/login/') 
@@ -173,8 +172,7 @@ def dat_ban_view(request):
             ngay_dat=ngay,
             gio_dat=gio_str,
             so_nguoi=so_nguoi,
-            ghi_chu=ghi_chu,
-            tong_tien_coc=tien_coc,  
+            ghi_chu=ghi_chu,  
             ban=None,  # Chờ nhân viên xếp bàn sau
             trang_thai='ChoXacNhan'
         )
@@ -239,7 +237,7 @@ def man_hinh_nhan_vien(request):
         'danh_sach_ban': danh_sach_ban,
         'don_hang_dang_cho': don_hang_dang_cho,
     })
-
+@staff_member_required
 def quan_ly_dat_ban(request):
     # View dùng cho Admin/Nhân viên quản lý các booking của khách
     if request.method == "POST":
@@ -329,6 +327,9 @@ def thuc_don(request):
     except (TypeError, ValueError):
         ban_id = None
 
+    if ban_id and not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, "Bạn không có quyền thêm món.")
+        return redirect("thuc_don")
     ban = Ban.objects.filter(id=ban_id).first() if ban_id else None
 
     # ===== FILTER =====
@@ -1073,3 +1074,135 @@ def qr_thanh_toan_nhanh(request, don_hang_id):
 def kiem_tra_trang_thai_don(request, don_hang_id):
     don_hang = get_object_or_404(DonHang, id=don_hang_id)
     return JsonResponse({'trang_thai': don_hang.trang_thai_don})
+
+def thong_ke(request):
+    
+    # =====================
+    # FILTER DATE
+    # =====================
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+
+    thanh_toan_base = ThanhToan.objects.all()
+
+    if start_date:
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        thanh_toan_base = thanh_toan_base.filter(
+            thoi_gian_thanh_toan__date__gte=start_date
+        )
+
+    if end_date:
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        thanh_toan_base = thanh_toan_base.filter(
+            thoi_gian_thanh_toan__date__lte=end_date
+        )
+
+    # =====================
+    # DON HANG THEO THANH TOAN FILTER
+    # =====================
+    don_hang_base = DonHang.objects.filter(
+        thanhtoan__in=thanh_toan_base
+    ).distinct()
+
+    # =====================
+    # TỔNG ĐƠN
+    # =====================
+    tong_don = don_hang_base.count()
+
+    # =====================
+    # ĐÃ THANH TOÁN
+    # =====================
+    don_da_tt = don_hang_base.filter(trang_thai_don="DaThanhToan")
+    da_thanh_toan = don_da_tt.count()
+
+    # =====================
+    # DOANH THU
+    # =====================
+    tong_doanh_thu = don_da_tt.aggregate(
+        tong=Sum("tong_tien")
+    )["tong"] or 0
+
+    # =====================
+    # DOANH THU HÔM NAY
+    # =====================
+    hom_nay = timezone.now().date()
+
+    doanh_thu_hom_nay = DonHang.objects.filter(
+        trang_thai_don="DaThanhToan",
+        thanhtoan__thoi_gian_thanh_toan__date=hom_nay
+    ).aggregate(
+        tong=Sum("tong_tien")
+    )["tong"] or 0
+
+    # =====================
+    # TIỀN MẶT / CHUYỂN KHOẢN
+    # =====================
+    tien_mat = thanh_toan_base.filter(
+        phuong_thuc="TienMat"
+    ).aggregate(
+        tong=Sum("don_hang__tong_tien")
+    )["tong"] or 0
+
+    chuyen_khoan = thanh_toan_base.filter(
+        phuong_thuc="ChuyenKhoan"
+    ).aggregate(
+        tong=Sum("don_hang__tong_tien")
+    )["tong"] or 0
+
+    # =====================
+    # MÓN BÁN CHẠY
+    # =====================
+    mon_ban_chay = ChiTietDonHang.objects.filter(
+        don_hang__in=don_hang_base,
+        don_hang__trang_thai_don="DaThanhToan"
+    ).values(
+        "mon_an__ten_mon"
+    ).annotate(
+        doanh_thu=Sum(
+            ExpressionWrapper(
+                F("so_luong") * F("gia_luc_ban"),
+                output_field=DecimalField()
+            )
+        )
+    ).order_by("-doanh_thu")[:5]
+
+    # =====================
+    # DOANH THU THEO LOẠI
+    # =====================
+    doanh_thu_loai = ChiTietDonHang.objects.filter(
+        don_hang__in=don_hang_base,
+        don_hang__trang_thai_don="DaThanhToan"
+    ).values(
+        "mon_an__loai_mon__ten_loai"
+    ).annotate(
+        doanh_thu=Sum(
+            ExpressionWrapper(
+                F("so_luong") * F("gia_luc_ban"),
+                output_field=DecimalField()
+            )
+        )
+    ).order_by("-doanh_thu")
+    
+    doanh_thu_theo_ngay = list(
+        ThanhToan.objects.filter(
+            don_hang__trang_thai_don="DaThanhToan"
+        ).annotate(
+            ngay=TruncDate("thoi_gian_thanh_toan")
+        ).values("ngay").annotate(
+            tong=Sum("don_hang__tong_tien")
+        ).order_by("ngay")
+    )
+    
+    context = {
+        "tong_don": tong_don,
+        "tong_doanh_thu": tong_doanh_thu,
+        "doanh_thu_hom_nay": doanh_thu_hom_nay,
+        "tien_mat": tien_mat,
+        "chuyen_khoan": chuyen_khoan,
+        "da_thanh_toan": da_thanh_toan,
+        "mon_ban_chay": mon_ban_chay,
+        "doanh_thu_loai": doanh_thu_loai,
+        "doanh_thu_theo_ngay": doanh_thu_theo_ngay,
+    }
+
+    return render(request, "thong_ke.html", context)

@@ -65,12 +65,8 @@
             </div>
 
             <div class="col-md-4">
-                <select id="filterCoc" class="form-select">
-                    <option value="">-- Tất cả tiền cọc --</option>
-                    <option value="0">Không cọc</option>
-                    <option value="500000">500k</option>
-                    <option value="1000000">1 triệu</option>
-                </select>
+                <input type="text" id="filterTenKhach" class="form-control"
+                       placeholder="Nhập tên khách hàng...">
             </div>
 
             <div class="col-md-4">
@@ -109,12 +105,7 @@
                                    {% if item.trang_thai == "DaHuy" %}disabled{% endif %}>
                         </div>
                         
-                        <div class="d-flex align-items-center mb-2">
-                            <b class="me-2" style="width: 85px;">Cọc (VNĐ):</b>
-                            <input type="number" name="tong_tien_coc" class="form-control form-control-sm w-50 tien-coc-input" 
-                                   value="{{ item.tong_tien_coc|default:0 }}" 
-                                   {% if item.trang_thai == "DaHuy" %}disabled{% endif %}>
-                        </div>
+                        
 
                         <p class="status {{ item.trang_thai }} mt-2 mb-0">
                             {{ item.trang_thai }}
@@ -197,13 +188,27 @@ function closeDeleteModal() {
 
 function applyFilter() {
     let trangThai = document.getElementById("filterTrangThai").value;
-    let coc = document.getElementById("filterCoc").value;
+    let tenKhach = document.getElementById("filterTenKhach").value.toLowerCase();
+
     let items = document.querySelectorAll(".datban-item");
 
     items.forEach(item => {
-        let match = true; 
-        if (trangThai && item.dataset.trangthai !== trangThai) match = false;
-        if (coc && item.dataset.coc !== coc) match = false;
+
+        let match = true;
+
+        // lọc trạng thái
+        if (trangThai && item.dataset.trangthai !== trangThai) {
+            match = false;
+        }
+
+        // lấy tên khách trong card
+        let tenKhachCard = item.querySelector("p b").parentElement.innerText.toLowerCase();
+
+        // lọc tên khách
+        if (tenKhach && !tenKhachCard.includes(tenKhach)) {
+            match = false;
+        }
+
         item.style.display = match ? "block" : "none";
     });
 }
@@ -213,20 +218,12 @@ function locBanPhuHop(elementTrigger) {
     let formContainer = elementTrigger.closest('form'); 
     let selectLoaiBan = formContainer.querySelector('.loai-ban-filter');
     let selectChonBan = formContainer.querySelector('.chon-ban-dropdown');
-    let inputTienCoc = formContainer.querySelector('.tien-coc-input');
+    
     let inputSoNguoi = formContainer.querySelector('.so-nguoi-input');
     
     if (!selectChonBan) return;
 
-    // 1. Nếu người dùng đổi "Loại Bàn", tự động nhảy tiền cọc
-    if (elementTrigger.classList.contains('loai-ban-filter')) {
-        if (selectLoaiBan.value === 'VIP') {
-            inputTienCoc.value = 1000000;
-        } else if (selectLoaiBan.value === 'Thuong') {
-            inputTienCoc.value = 500000;
-        }
-    }
-
+    
     // 2. Lấy "Số người" mới nhất từ Input để đi tìm bàn vừa vặn
     let soNguoiKhachDat = parseInt(inputSoNguoi.value) || 0;
     let loaiBanMuonChon = selectLoaiBan ? selectLoaiBan.value : 'all';
