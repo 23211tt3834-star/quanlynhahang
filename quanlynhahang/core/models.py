@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
-
+from cloudinary.models import CloudinaryField
 # -------------------------------------------------------------
 # CÁC BẢNG HỆ THỐNG MẶC ĐỊNH (Không cần thay đổi)
 # -------------------------------------------------------------
@@ -145,7 +145,14 @@ class MonAn(models.Model):
     ten_mon = models.CharField(max_length=200, verbose_name="Tên món")
     mo_ta = models.TextField(blank=True, null=True, verbose_name="Mô tả")
     gia_ban = models.DecimalField(max_digits=18, decimal_places=0, validators=[MinValueValidator(0)], verbose_name="Giá bán") # Giá không được âm
-    hinh_anh = models.CharField(max_length=255, blank=True, null=True, verbose_name="Đường dẫn hình ảnh")
+    
+
+    hinh_anh = CloudinaryField(
+        'image',
+        folder='mon_an',
+        blank=True,
+        null=True
+    )
     trang_thai_ban = models.BooleanField(default=True, verbose_name="Đang mở bán")
 
     class Meta:
